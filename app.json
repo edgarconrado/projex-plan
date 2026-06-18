@@ -1,30 +1,49 @@
 {
   "expo": {
-    "name": "projex-plan",
+    "name": "Projex Plan",
     "slug": "projex-plan",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0A0A0A"
     },
+    "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.jacarandalab.projexplan"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0A0A0A"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "package": "com.jacarandalab.projexplan"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
+    "plugins": [
+      "expo-router",
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Projex Plan necesita acceso a tus fotos.",
+          "cameraPermission": "Projex Plan necesita acceso a tu cámara."
+        }
+      ],
+      "expo-document-picker",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Projex Plan usa tu ubicación para geoetiquetar fotos."
+        }
+      ]
+    ],
+    "scheme": "projexplan",
+    "experiments": {
+      "typedRoutes": true
     }
   }
 }

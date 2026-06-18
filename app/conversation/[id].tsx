@@ -1,0 +1,131 @@
+import { useEffect, useRef, useState } from 'react';
+import {
+  View, Text, FlatList, TextInput,
+  TouchableOpacity, KeyboardAvoidingView, Platform,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useMessages } from '../../src/hooks/useChat';
+import { ChatBubble } from '../../src/components/chat/ChatBubble';
+import { Colors, Typography, Spacing, Radius } from '../../src/lib/theme';
+import { useAuth } from '../../src/lib/AuthContext';
+
+export default function ConversationScreen() {
+  const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
+  const { user } = useAuth();
+  const { messages, isLoading, sendMessage, markAsRead } = useMessages(id ?? '');
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const listRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    markAsRead();
+  }, [markAsRead]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+    }
+  }, [messages.length]);
+
+  const handleSend = async () => {
+    if (!text.trim() || sending) return;
+    setSending(true);
+    try {
+      await sendMessage(text);
+      setText('');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+      {/* Header */}
+      <View style={{
+        flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+        padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: Colors.border,
+        backgroundColor: Colors.surface,
+      }}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <Text style={[Typography.h4]} numberOfLines={1}>{name ?? 'Conversación'}</Text>
+        </View>
+        <TouchableOpacity>
+          <Ionicons name="ellipsis-horizontal" size={22} color={Colors.textSecondary} />
+        </TouchableOpacity>
+      </View>
+
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        {/* Mensajes */}
+        <FlatList
+          ref={listRef}
+          data={messages}
+          keyExtractor={(m) => m.id}
+          contentContainerStyle={{ paddingVertical: Spacing.md }}
+          showsVerticalScrollIndicator={false}
+          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+          renderItem={({ item, index }) => {
+            const isOwn = item.sender_id === user?.id;
+            const prevMsg = index > 0 ? messages[index - 1] : null;
+            const showAvatar = !isOwn && prevMsg?.sender_id !== item.sender_id;
+            return <ChatBubble message={item} isOwn={isOwn} showAvatar={showAvatar} />;
+          }}
+          ListEmptyComponent={
+            !isLoading ? (
+              <View style={{ alignItems: 'center', paddingTop: 60, gap: Spacing.md }}>
+                <Ionicons name="chatbubbles-outline" size={48} color={Colors.textMuted} />
+                <Text style={[Typography.bodySmall, { color: Colors.textMuted }]}>
+                  Sé el primero en escribir
+                </Text>
+              </View>
+            ) : null
+          }
+        />
+
+        {/* Input */}
+        <View style={{
+          flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm,
+          padding: Spacing.md, borderTopWidth: 0.5, borderTopColor: Colors.border,
+          backgroundColor: Colors.surface,
+        }}>
+          <TextInput
+            value={text}
+            onChangeText={setText}
+            placeholder="Escribe un mensaje..."
+            placeholderTextColor={Colors.textMuted}
+            multiline
+            style={{
+              flex: 1, backgroundColor: Colors.surfaceSecondary,
+              borderRadius: Radius.xl, borderWidth: 0.5, borderColor: Colors.border,
+              paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+              color: Colors.textPrimary, fontSize: 15, maxHeight: 120,
+            }}
+          />
+          <TouchableOpacity
+            onPress={handleSend}
+            disabled={!text.trim() || sending}
+            style={{
+              width: 40, height: 40, borderRadius: 20,
+              backgroundColor: text.trim() ? Colors.primary : Colors.surfaceSecondary,
+              alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <Ionicons
+              name="send"
+              size={18}
+              color={text.trim() ? Colors.textInverse : Colors.textMuted}
+            />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
