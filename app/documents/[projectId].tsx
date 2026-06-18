@@ -8,6 +8,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useDocuments } from '../../src/hooks/useDocuments';
 import { UploadDocumentModal } from '../../src/components/plans/UploadDocumentModal';
+import { ImageViewerModal } from '../../src/components/plans/ImageViewerModal';
 import { Colors, Typography, Spacing, Radius } from '../../src/lib/theme';
 import { EmptyState, LoadingOverlay, Avatar } from '../../src/components/ui';
 import { Document } from '../../src/types';
@@ -35,6 +36,7 @@ export default function DocumentsScreen() {
   const { documents, isLoading, uploadProgress, fetchDocuments, uploadDocument, deleteDocument } = useDocuments(projectId ?? '');
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [viewerImage, setViewerImage] = useState<{ url: string; name: string } | null>(null);
 
   useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
 
@@ -45,9 +47,14 @@ export default function DocumentsScreen() {
   };
 
   const handleOpen = (doc: Document) => {
-    Linking.openURL(doc.file_url).catch(() => {
-      Alert.alert('Error', 'No se pudo abrir el archivo');
-    });
+    const isImage = doc.mime_type?.startsWith('image/');
+    if (isImage) {
+      setViewerImage({ url: doc.file_url, name: doc.file_name });
+    } else {
+      Linking.openURL(doc.file_url).catch(() => {
+        Alert.alert('Error', 'No se pudo abrir el archivo');
+      });
+    }
   };
 
   const handleDelete = (doc: Document) => {
@@ -152,6 +159,13 @@ export default function DocumentsScreen() {
         onClose={() => setUploadModalVisible(false)}
         onUpload={uploadDocument}
         uploadProgress={uploadProgress}
+      />
+
+      <ImageViewerModal
+        visible={!!viewerImage}
+        imageUrl={viewerImage?.url ?? null}
+        fileName={viewerImage?.name}
+        onClose={() => setViewerImage(null)}
       />
     </SafeAreaView>
   );
