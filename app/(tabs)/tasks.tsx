@@ -19,6 +19,7 @@ const STATUS_FILTERS: { value: TaskStatus | 'all'; label: string }[] = [
   { value: 'in_progress', label: 'En progreso' },
   { value: 'in_review', label: 'En revisión' },
   { value: 'completed', label: 'Completadas' },
+  { value: 'cancelled', label: 'Canceladas' },
 ];
 
 const PRIORITY_FILTERS: { value: TaskPriority | 'all'; label: string }[] = [

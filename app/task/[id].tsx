@@ -26,6 +26,7 @@ const STATUSES: { value: TaskStatus; label: string }[] = [
   { value: 'in_progress', label: 'En progreso' },
   { value: 'in_review', label: 'En revisión' },
   { value: 'completed', label: 'Completada' },
+  { value: 'cancelled', label: 'Cancelada' },
 ];
 
 export default function TaskDetailScreen() {
@@ -88,9 +89,11 @@ export default function TaskDetailScreen() {
     if (!task) return;
     setSaving(true);
     try {
+      console.log('[TaskDetail] Actualizando:', task.id, JSON.stringify(updates));
       await updateTask(task.id, updates as any);
       await fetchTask();
     } catch (e: unknown) {
+      console.log('[TaskDetail] ERROR:', JSON.stringify(e, null, 2));
       Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo actualizar');
     } finally {
       setSaving(false);
