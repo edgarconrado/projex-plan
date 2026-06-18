@@ -5,9 +5,12 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/lib/AuthContext';
 import { useProjects } from '../../src/hooks/useProjects';
+import { useTasks } from '../../src/hooks/useTasks';
 import { useProjectStore } from '../../src/stores';
-import { Colors, Typography, Spacing, Radius, getStatusColor, getStatusLabel } from '../../src/lib/theme';
+import { Colors, Typography, Spacing, Radius, getStatusColor, getStatusLabel, getPriorityColor } from '../../src/lib/theme';
 import { ProgressBar, Avatar } from '../../src/components/ui';
+import { DonutChart, DonutLegend } from '../../src/components/ui/DonutChart';
+import { HorizontalBarChart } from '../../src/components/ui/HorizontalBarChart';
 
 function StatCard({ label, value, icon, color }: { label: string; value: number | string; icon: string; color: string }) {
   return (
@@ -21,28 +24,67 @@ function StatCard({ label, value, icon, color }: { label: string; value: number 
   );
 }
 
+function SectionCard({ children }: { children: React.ReactNode }) {
+  return (
+    <View style={{ backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: Colors.border, padding: Spacing.lg }}>
+      {children}
+    </View>
+  );
+}
+
 export default function DashboardScreen() {
   const { profile } = useAuth();
   const { projects, fetchProjects } = useProjects();
+  const { tasks, fetchTasks } = useTasks();
   const { activeProjectId, setActiveProjectId } = useProjectStore();
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => { fetchProjects(); }, [fetchProjects]);
+  useEffect(() => { fetchProjects(); fetchTasks(); }, [fetchProjects, fetchTasks]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchProjects();
+    await Promise.all([fetchProjects(), fetchTasks()]);
     setRefreshing(false);
-  }, [fetchProjects]);
+  }, [fetchProjects, fetchTasks]);
 
   const activeProject = projects.find((p) => p.id === activeProjectId);
-  const activeProjects = projects.filter((p) => p.status === 'in_progress');
-  const completedProjects = projects.filter((p) => p.status === 'completed');
   const recentProjects = [...projects].slice(0, 4);
 
-  const avgProgress = projects.length
-    ? Math.round(projects.reduce((acc, p) => acc + p.progress, 0) / projects.length)
-    : 0;
+  // Tareas SOLO del proyecto activo
+  const projectTasks = activeProjectId ? tasks.filter((t) => t.project_id === activeProjectId) : [];
+  const totalTasks = projectTasks.length;
+  const completedTasks = projectTasks.filter((t) => t.status === 'completed').length;
+  const inProgressTasks = projectTasks.filter((t) => t.status === 'in_progress').length;
+  const inReviewTasks = projectTasks.filter((t) => t.status === 'in_review').length;
+  const pendingTasks = projectTasks.filter((t) => t.status === 'pending').length;
+
+  // % de progreso basado en tareas completadas del proyecto activo (no en projects.progress)
+  const taskProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+  const statusSegments = [
+    { label: 'Completadas', value: completedTasks, color: Colors.success },
+    { label: 'En progreso', value: inProgressTasks, color: Colors.statusActive },
+    { label: 'En revisión', value: inReviewTasks, color: Colors.info },
+    { label: 'Pendientes', value: pendingTasks, color: Colors.textMuted },
+  ];
+
+  const priorityCounts = {
+    urgent: projectTasks.filter((t) => t.priority === 'urgent').length,
+    high: projectTasks.filter((t) => t.priority === 'high').length,
+    medium: projectTasks.filter((t) => t.priority === 'medium').length,
+    low: projectTasks.filter((t) => t.priority === 'low').length,
+  };
+
+  const prioritySegments = [
+    { label: 'Urgente', value: priorityCounts.urgent, color: getPriorityColor('urgent') },
+    { label: 'Alta', value: priorityCounts.high, color: getPriorityColor('high') },
+    { label: 'Media', value: priorityCounts.medium, color: getPriorityColor('medium') },
+    { label: 'Baja', value: priorityCounts.low, color: getPriorityColor('low') },
+  ];
+
+  const overdueTasks = projectTasks.filter((t) =>
+    t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed'
+  ).length;
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches';
@@ -50,11 +92,11 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
       <ScrollView
-        contentContainerStyle={{ padding: Spacing.lg, paddingBottom: 100 }}
+        contentContainerStyle={{ padding: Spacing.lg, paddingBottom: 100, gap: Spacing.xl }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.lg }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
             <Text style={[Typography.bodySmall, { color: Colors.textMuted }]}>{greeting},</Text>
             <Text style={Typography.h2}>{profile?.full_name?.split(' ')[0] ?? 'Usuario'} 👋</Text>
@@ -62,14 +104,14 @@ export default function DashboardScreen() {
           {profile && <Avatar name={profile.full_name} size={44} />}
         </View>
 
-        {/* Proyecto activo — destacado arriba */}
+        {/* Proyecto activo */}
         {activeProject ? (
           <TouchableOpacity
             onPress={() => router.push('/(tabs)/tasks' as never)}
             style={{
               backgroundColor: Colors.primaryMuted, borderRadius: Radius.lg,
               borderWidth: 1, borderColor: Colors.primary,
-              padding: Spacing.lg, marginBottom: Spacing.xl,
+              padding: Spacing.lg,
               flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
             }}
           >
@@ -88,37 +130,59 @@ export default function DashboardScreen() {
             style={{
               backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.lg,
               borderWidth: 1, borderColor: Colors.border, borderStyle: 'dashed',
-              padding: Spacing.lg, marginBottom: Spacing.xl,
+              padding: Spacing.lg,
               flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
             }}
           >
             <Ionicons name="add-circle-outline" size={24} color={Colors.textMuted} />
             <Text style={[Typography.bodySmall, { color: Colors.textMuted, flex: 1 }]}>
-              Selecciona un proyecto activo para empezar
+              Selecciona un proyecto activo para ver sus estadísticas
             </Text>
           </TouchableOpacity>
         )}
 
-        <View style={{ flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xl }}>
-          <StatCard label="Proyectos" value={projects.length} icon="briefcase-outline" color={Colors.primary} />
-          <StatCard label="Activos" value={activeProjects.length} icon="flash-outline" color={Colors.statusActive} />
-          <StatCard label="Completados" value={completedProjects.length} icon="checkmark-circle-outline" color={Colors.statusCompleted} />
-        </View>
-
-        {projects.length > 0 && (
-          <View style={{ backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: Colors.border, padding: Spacing.lg, marginBottom: Spacing.xl }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.md }}>
-              <Text style={Typography.h4}>Progreso general</Text>
-              <Text style={{ fontSize: 20, fontWeight: '700', color: Colors.primary }}>{avgProgress}%</Text>
+        {activeProject && (
+          <>
+            {/* Stats rápidas del proyecto activo */}
+            <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+              <StatCard label="Tareas" value={totalTasks} icon="checkbox-outline" color={Colors.primary} />
+              <StatCard label="Completadas" value={completedTasks} icon="checkmark-circle-outline" color={Colors.success} />
+              <StatCard label="Vencidas" value={overdueTasks} icon="alert-circle-outline" color={overdueTasks > 0 ? Colors.danger : Colors.textMuted} />
             </View>
-            <ProgressBar value={avgProgress} height={8} />
-            <Text style={[Typography.caption, { marginTop: Spacing.sm, color: Colors.textMuted }]}>
-              Promedio de {projects.length} {projects.length === 1 ? 'proyecto' : 'proyectos'}
-            </Text>
-          </View>
+
+            {/* Progreso con dona */}
+            <SectionCard>
+              <Text style={[Typography.h4, { marginBottom: Spacing.lg }]}>Progreso de "{activeProject.name}"</Text>
+              {totalTasks === 0 ? (
+                <Text style={[Typography.bodySmall, { color: Colors.textMuted, textAlign: 'center', paddingVertical: Spacing.lg }]}>
+                  Aún no hay tareas en este proyecto
+                </Text>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xl }}>
+                  <DonutChart
+                    segments={statusSegments}
+                    centerValue={`${taskProgress}%`}
+                    centerLabel="completado"
+                  />
+                  <View style={{ flex: 1 }}>
+                    <DonutLegend segments={statusSegments} />
+                  </View>
+                </View>
+              )}
+            </SectionCard>
+
+            {/* Distribución por prioridad */}
+            {totalTasks > 0 && (
+              <SectionCard>
+                <Text style={[Typography.h4, { marginBottom: Spacing.lg }]}>Tareas por prioridad</Text>
+                <HorizontalBarChart segments={prioritySegments} />
+              </SectionCard>
+            )}
+          </>
         )}
 
-        <View style={{ marginBottom: Spacing.lg }}>
+        {/* Lista de proyectos */}
+        <View>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md }}>
             <Text style={Typography.h4}>Todos los proyectos</Text>
             <TouchableOpacity onPress={() => router.push('/(tabs)/projects' as never)}>
@@ -135,36 +199,37 @@ export default function DashboardScreen() {
               <Text style={[Typography.bodySmall, { color: Colors.textMuted }]}>Crea tu primer proyecto</Text>
             </TouchableOpacity>
           ) : (
-            recentProjects.map((project) => {
-              const isActive = project.id === activeProjectId;
-              return (
-                <TouchableOpacity
-                  key={project.id}
-                  onPress={() => setActiveProjectId(project.id)}
-                  style={{
-                    backgroundColor: isActive ? Colors.primaryMuted : Colors.surfaceSecondary,
-                    borderRadius: Radius.lg, borderWidth: isActive ? 1 : 0.5,
-                    borderColor: isActive ? Colors.primary : Colors.border,
-                    padding: Spacing.md, marginBottom: Spacing.sm,
-                    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-                  }}
-                >
-                  <View style={{ width: 4, height: 40, borderRadius: 2, backgroundColor: getStatusColor(project.status) }} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[Typography.body, { fontWeight: '500' }]} numberOfLines={1}>{project.name}</Text>
-                    <Text style={[Typography.caption, { color: Colors.textMuted, marginTop: 2 }]}>
-                      {getStatusLabel(project.status)} · {project.progress}%
-                    </Text>
-                    <ProgressBar value={project.progress} height={3} color={getStatusColor(project.status)} style={{ marginTop: 6 }} />
-                  </View>
-                  {isActive ? (
-                    <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
-                  ) : (
-                    <Ionicons name="ellipse-outline" size={20} color={Colors.textMuted} />
-                  )}
-                </TouchableOpacity>
-              );
-            })
+            <View style={{ gap: Spacing.sm }}>
+              {recentProjects.map((project) => {
+                const isActive = project.id === activeProjectId;
+                return (
+                  <TouchableOpacity
+                    key={project.id}
+                    onPress={() => setActiveProjectId(project.id)}
+                    style={{
+                      backgroundColor: isActive ? Colors.primaryMuted : Colors.surfaceSecondary,
+                      borderRadius: Radius.lg, borderWidth: isActive ? 1 : 0.5,
+                      borderColor: isActive ? Colors.primary : Colors.border,
+                      padding: Spacing.md,
+                      flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+                    }}
+                  >
+                    <View style={{ width: 4, height: 40, borderRadius: 2, backgroundColor: getStatusColor(project.status) }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[Typography.body, { fontWeight: '500' }]} numberOfLines={1}>{project.name}</Text>
+                      <Text style={[Typography.caption, { color: Colors.textMuted, marginTop: 2 }]}>
+                        {getStatusLabel(project.status)}
+                      </Text>
+                    </View>
+                    {isActive ? (
+                      <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
+                    ) : (
+                      <Ionicons name="ellipse-outline" size={20} color={Colors.textMuted} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           )}
         </View>
       </ScrollView>
