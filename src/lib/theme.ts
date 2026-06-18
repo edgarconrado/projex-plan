@@ -82,7 +82,7 @@ export function getPriorityColor(priority: string): string {
     low: Colors.priorityLow,
     medium: Colors.priorityMedium,
     high: Colors.priorityHigh,
-    urgent: Colors.priorityUrgent,
+    critical: Colors.priorityUrgent,
   };
   return map[priority] ?? Colors.textMuted;
 }
@@ -98,7 +98,7 @@ export function getStatusLabel(status: string): string {
 
 export function getPriorityLabel(priority: string): string {
   const map: Record<string, string> = {
-    low: 'Baja', medium: 'Media', high: 'Alta', urgent: 'Urgente',
+    low: 'Baja', medium: 'Media', high: 'Alta', critical: 'Crítica',
   };
   return map[priority] ?? priority;
 }

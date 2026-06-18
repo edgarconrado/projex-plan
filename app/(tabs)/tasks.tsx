@@ -24,16 +24,16 @@ const STATUS_FILTERS: { value: TaskStatus | 'all'; label: string }[] = [
 
 const PRIORITY_FILTERS: { value: TaskPriority | 'all'; label: string }[] = [
   { value: 'all', label: 'Todas' },
-  { value: 'urgent', label: 'Urgente' },
+  { value: 'critical', label: 'Crítica' },
   { value: 'high', label: 'Alta' },
   { value: 'medium', label: 'Media' },
   { value: 'low', label: 'Baja' },
 ];
 
 export default function TasksScreen() {
-  const { tasks, isLoading, fetchTasks, createTask, toggleTaskStatus, deleteTask } = useTasks();
-  const { projects, fetchProjects } = useProjects();
   const { activeProjectId, setActiveProjectId } = useProjectStore();
+  const { tasks, isLoading, fetchTasks, createTask, toggleTaskStatus, deleteTask } = useTasks(activeProjectId ?? undefined);
+  const { projects, fetchProjects } = useProjects();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | 'all'>('all');

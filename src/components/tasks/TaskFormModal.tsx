@@ -21,7 +21,7 @@ const PRIORITIES: { value: TaskPriority; label: string; color: string }[] = [
   { value: 'low', label: 'Baja', color: Colors.priorityLow },
   { value: 'medium', label: 'Media', color: Colors.priorityMedium },
   { value: 'high', label: 'Alta', color: Colors.priorityHigh },
-  { value: 'urgent', label: 'Urgente', color: Colors.priorityUrgent },
+  { value: 'critical', label: 'Crítica', color: Colors.priorityUrgent },
 ];
 
 const STATUSES: { value: TaskStatus; label: string }[] = [

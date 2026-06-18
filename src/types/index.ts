@@ -1,7 +1,7 @@
 export type UserRole = 'admin' | 'project_manager' | 'supervisor' | 'worker';
 export type ProjectStatus = 'planning' | 'in_progress' | 'on_hold' | 'in_review' | 'completed' | 'cancelled';
 export type TaskStatus = 'pending' | 'in_progress' | 'in_review' | 'completed' | 'cancelled';
-export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
 export type MessageStatus = 'sent' | 'delivered' | 'read';
 export type AnnotationType = 'measure' | 'pin' | 'text';
 export type PlanStatus = 'Vigente' | 'Revisión' | 'Obsoleto';

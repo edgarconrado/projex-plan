@@ -69,14 +69,14 @@ export default function DashboardScreen() {
   ];
 
   const priorityCounts = {
-    urgent: projectTasks.filter((t) => t.priority === 'urgent').length,
+    critical: projectTasks.filter((t) => t.priority === 'critical').length,
     high: projectTasks.filter((t) => t.priority === 'high').length,
     medium: projectTasks.filter((t) => t.priority === 'medium').length,
     low: projectTasks.filter((t) => t.priority === 'low').length,
   };
 
   const prioritySegments = [
-    { label: 'Urgente', value: priorityCounts.urgent, color: getPriorityColor('urgent') },
+    { label: 'Crítica', value: priorityCounts.critical, color: getPriorityColor('critical') },
     { label: 'Alta', value: priorityCounts.high, color: getPriorityColor('high') },
     { label: 'Media', value: priorityCounts.medium, color: getPriorityColor('medium') },
     { label: 'Baja', value: priorityCounts.low, color: getPriorityColor('low') },

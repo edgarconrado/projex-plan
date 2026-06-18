@@ -18,7 +18,7 @@ const PRIORITIES: { value: TaskPriority; label: string; color: string }[] = [
   { value: 'low', label: 'Baja', color: Colors.priorityLow },
   { value: 'medium', label: 'Media', color: Colors.priorityMedium },
   { value: 'high', label: 'Alta', color: Colors.priorityHigh },
-  { value: 'urgent', label: 'Urgente', color: Colors.priorityUrgent },
+  { value: 'critical', label: 'Crítica', color: Colors.priorityUrgent },
 ];
 
 const STATUSES: { value: TaskStatus; label: string }[] = [
@@ -89,11 +89,9 @@ export default function TaskDetailScreen() {
     if (!task) return;
     setSaving(true);
     try {
-      console.log('[TaskDetail] Actualizando:', task.id, JSON.stringify(updates));
       await updateTask(task.id, updates as any);
       await fetchTask();
     } catch (e: unknown) {
-      console.log('[TaskDetail] ERROR:', JSON.stringify(e, null, 2));
       Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo actualizar');
     } finally {
       setSaving(false);
