@@ -19,6 +19,8 @@ export interface Profile {
   is_online: boolean;
   last_seen?: string | null;
   expo_push_token?: string | null;
+  notifications_enabled?: boolean;
+  theme_preference?: 'dark' | 'light';
   created_at: string;
   updated_at: string;
 }

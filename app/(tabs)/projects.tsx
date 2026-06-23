@@ -7,7 +7,8 @@ import { useProjects } from '../../src/hooks/useProjects';
 import { useProjectStore } from '../../src/stores';
 import { ProjectCard } from '../../src/components/tasks/ProjectCard';
 import { ProjectFormModal } from '../../src/components/tasks/ProjectFormModal';
-import { Colors, Typography, Spacing, Radius } from '../../src/lib/theme';
+import { Spacing, Radius } from '../../src/lib/theme';
+import { useTheme } from '../../src/lib/ThemeContext';
 import { EmptyState } from '../../src/components/ui';
 import { ProjectCardSkeleton } from '../../src/components/ui/SkeletonLoader';
 import { Project, ProjectStatus } from '../../src/types';
@@ -22,6 +23,7 @@ const STATUS_FILTERS: { value: ProjectStatus | 'all'; label: string }[] = [
 ];
 
 export default function ProjectsScreen() {
+  const { colors, typography } = useTheme();
   const { projects, isLoading, fetchProjects, createProject, updateProject, deleteProject } = useProjects();
   const { activeProjectId, setActiveProjectId } = useProjectStore();
   const [search, setSearch] = useState('');
@@ -65,22 +67,22 @@ export default function ProjectsScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, paddingBottom: Spacing.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.lg }}>
-          <Text style={Typography.h2}>Proyectos</Text>
+          <Text style={typography.h2}>Proyectos</Text>
           <TouchableOpacity
             onPress={() => { setEditingProject(null); setModalVisible(true); }}
-            style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' }}
+            style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Ionicons name="add" size={24} color={Colors.textInverse} />
+            <Ionicons name="add" size={24} color={colors.textInverse} />
           </TouchableOpacity>
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 0.5, borderColor: Colors.border, paddingHorizontal: Spacing.md, gap: Spacing.sm, marginBottom: Spacing.md }}>
-          <Ionicons name="search-outline" size={18} color={Colors.textMuted} />
-          <TextInput value={search} onChangeText={setSearch} placeholder="Buscar proyecto..." placeholderTextColor={Colors.textMuted} style={{ flex: 1, color: Colors.textPrimary, fontSize: 15, paddingVertical: 12 }} />
-          {search ? <TouchableOpacity onPress={() => setSearch('')}><Ionicons name="close-circle" size={18} color={Colors.textMuted} /></TouchableOpacity> : null}
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 0.5, borderColor: colors.border, paddingHorizontal: Spacing.md, gap: Spacing.sm, marginBottom: Spacing.md }}>
+          <Ionicons name="search-outline" size={18} color={colors.textMuted} />
+          <TextInput value={search} onChangeText={setSearch} placeholder="Buscar proyecto..." placeholderTextColor={colors.textMuted} style={{ flex: 1, color: colors.textPrimary, fontSize: 15, paddingVertical: 12 }} />
+          {search ? <TouchableOpacity onPress={() => setSearch('')}><Ionicons name="close-circle" size={18} color={colors.textMuted} /></TouchableOpacity> : null}
         </View>
 
         <FlatList
@@ -88,8 +90,8 @@ export default function ProjectsScreen() {
           showsHorizontalScrollIndicator={false}
           renderItem={({ item }) => (
             <TouchableOpacity onPress={() => setStatusFilter(item.value)}
-              style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: Radius.full, marginRight: 8, borderWidth: 1, borderColor: statusFilter === item.value ? Colors.primary : Colors.border, backgroundColor: statusFilter === item.value ? Colors.primaryMuted : 'transparent' }}>
-              <Text style={{ fontSize: 13, fontWeight: '500', color: statusFilter === item.value ? Colors.primary : Colors.textSecondary }}>{item.label}</Text>
+              style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: Radius.full, marginRight: 8, borderWidth: 1, borderColor: statusFilter === item.value ? colors.primary : colors.border, backgroundColor: statusFilter === item.value ? colors.primaryMuted : 'transparent' }}>
+              <Text style={{ fontSize: 13, fontWeight: '500', color: statusFilter === item.value ? colors.primary : colors.textSecondary }}>{item.label}</Text>
             </TouchableOpacity>
           )}
         />
@@ -103,10 +105,10 @@ export default function ProjectsScreen() {
           keyExtractor={(p) => p.id}
           contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
           ListEmptyComponent={
             <EmptyState
-              icon={<Ionicons name="briefcase-outline" size={48} color={Colors.textMuted} />}
+              icon={<Ionicons name="briefcase-outline" size={48} color={colors.textMuted} />}
               title={search ? 'Sin resultados' : 'Sin proyectos'}
               subtitle={search ? 'Intenta con otro término' : 'Crea tu primer proyecto tocando el botón +'}
             />
@@ -121,11 +123,11 @@ export default function ProjectsScreen() {
                     <View style={{
                       position: 'absolute', top: Spacing.lg, right: Spacing.lg,
                       flexDirection: 'row', alignItems: 'center', gap: 4,
-                      backgroundColor: Colors.primary, paddingHorizontal: 8, paddingVertical: 3,
+                      backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 3,
                       borderRadius: Radius.full,
                     }}>
-                      <Ionicons name="checkmark-circle" size={11} color={Colors.textInverse} />
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: Colors.textInverse }}>ACTIVO</Text>
+                      <Ionicons name="checkmark-circle" size={11} color={colors.textInverse} />
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: colors.textInverse }}>ACTIVO</Text>
                     </View>
                   )}
                 </View>
@@ -134,39 +136,39 @@ export default function ProjectsScreen() {
                   {!isActive && (
                     <TouchableOpacity
                       onPress={() => handleSetActive(item)}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: Colors.surfaceSecondary, borderWidth: 0.5, borderColor: Colors.primary }}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.surfaceSecondary, borderWidth: 0.5, borderColor: colors.primary }}
                     >
-                      <Ionicons name="star-outline" size={13} color={Colors.primary} />
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: Colors.primary }}>Hacer activo</Text>
+                      <Ionicons name="star-outline" size={13} color={colors.primary} />
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: colors.primary }}>Hacer activo</Text>
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
                     onPress={() => router.push({ pathname: '/plans/[projectId]', params: { projectId: item.id, projectName: item.name } } as never)}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: Colors.surfaceSecondary, borderWidth: 0.5, borderColor: Colors.border }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.surfaceSecondary, borderWidth: 0.5, borderColor: colors.border }}
                   >
-                    <Ionicons name="map-outline" size={13} color={Colors.textMuted} />
-                    <Text style={{ fontSize: 12, fontWeight: '500', color: Colors.textMuted }}>Planos</Text>
+                    <Ionicons name="map-outline" size={13} color={colors.textMuted} />
+                    <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>Planos</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => router.push({ pathname: '/documents/[projectId]', params: { projectId: item.id, projectName: item.name } } as never)}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: Colors.surfaceSecondary, borderWidth: 0.5, borderColor: Colors.border }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.surfaceSecondary, borderWidth: 0.5, borderColor: colors.border }}
                   >
-                    <Ionicons name="folder-outline" size={13} color={Colors.textMuted} />
-                    <Text style={{ fontSize: 12, fontWeight: '500', color: Colors.textMuted }}>Docs</Text>
+                    <Ionicons name="folder-outline" size={13} color={colors.textMuted} />
+                    <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>Docs</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => { setEditingProject(item); setModalVisible(true); }}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: Colors.surfaceSecondary, borderWidth: 0.5, borderColor: Colors.border }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.surfaceSecondary, borderWidth: 0.5, borderColor: colors.border }}
                   >
-                    <Ionicons name="pencil-outline" size={13} color={Colors.textMuted} />
-                    <Text style={{ fontSize: 12, fontWeight: '500', color: Colors.textMuted }}>Editar</Text>
+                    <Ionicons name="pencil-outline" size={13} color={colors.textMuted} />
+                    <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>Editar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => handleDelete(item)}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: Colors.dangerMuted, borderWidth: 0.5, borderColor: Colors.danger }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.dangerMuted, borderWidth: 0.5, borderColor: colors.danger }}
                   >
-                    <Ionicons name="trash-outline" size={13} color={Colors.danger} />
-                    <Text style={{ fontSize: 12, fontWeight: '500', color: Colors.danger }}>Eliminar</Text>
+                    <Ionicons name="trash-outline" size={13} color={colors.danger} />
+                    <Text style={{ fontSize: 12, fontWeight: '500', color: colors.danger }}>Eliminar</Text>
                   </TouchableOpacity>
                 </View>
               </View>

@@ -1,7 +1,8 @@
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Task } from '../../types';
-import { Colors, Typography, Spacing, Radius, getPriorityColor, getPriorityLabel } from '../../lib/theme';
+import { Spacing, Radius, getPriorityColor, getPriorityLabel } from '../../lib/theme';
+import { useTheme } from '../../lib/ThemeContext';
 import { Avatar } from '../ui';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -14,7 +15,8 @@ interface TaskItemProps {
 }
 
 export function TaskItem({ task, onPress, onToggle, showProject = true }: TaskItemProps) {
-  const priorityColor = getPriorityColor(task.priority);
+  const { colors, typography } = useTheme();
+  const priorityColor = getPriorityColor(task.priority, colors);
   const isCompleted = task.status === 'completed';
   const isOverdue = task.due_date && new Date(task.due_date) < new Date() && !isCompleted;
   const completedCount = task.checklist?.filter((i) => i.is_completed).length ?? 0;
@@ -25,8 +27,8 @@ export function TaskItem({ task, onPress, onToggle, showProject = true }: TaskIt
       activeOpacity={0.7}
       onPress={onPress}
       style={{
-        backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.lg,
-        borderWidth: 0.5, borderColor: Colors.border,
+        backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg,
+        borderWidth: 0.5, borderColor: colors.border,
         padding: Spacing.md, marginBottom: Spacing.sm,
         flexDirection: 'row', gap: Spacing.md,
       }}
@@ -35,11 +37,11 @@ export function TaskItem({ task, onPress, onToggle, showProject = true }: TaskIt
         <View style={{
           width: 22, height: 22, borderRadius: 6,
           borderWidth: isCompleted ? 0 : 1.5,
-          borderColor: isCompleted ? 'transparent' : Colors.border,
-          backgroundColor: isCompleted ? Colors.primary : 'transparent',
+          borderColor: isCompleted ? 'transparent' : colors.border,
+          backgroundColor: isCompleted ? colors.primary : 'transparent',
           alignItems: 'center', justifyContent: 'center', marginTop: 2,
         }}>
-          {isCompleted && <Ionicons name="checkmark" size={14} color={Colors.textInverse} />}
+          {isCompleted && <Ionicons name="checkmark" size={14} color={colors.textInverse} />}
         </View>
       </TouchableOpacity>
 
@@ -49,12 +51,12 @@ export function TaskItem({ task, onPress, onToggle, showProject = true }: TaskIt
           <View style={{
             flexDirection: 'row', alignItems: 'center', gap: 4,
             marginBottom: 5, alignSelf: 'flex-start',
-            backgroundColor: Colors.primaryMuted,
+            backgroundColor: colors.primaryMuted,
             paddingHorizontal: 8, paddingVertical: 2,
             borderRadius: Radius.full,
           }}>
-            <Ionicons name="briefcase-outline" size={10} color={Colors.primary} />
-            <Text style={{ fontSize: 10, fontWeight: '600', color: Colors.primary }} numberOfLines={1}>
+            <Ionicons name="briefcase-outline" size={10} color={colors.primary} />
+            <Text style={{ fontSize: 10, fontWeight: '600', color: colors.primary }} numberOfLines={1}>
               {task.project.name}
             </Text>
           </View>
@@ -63,7 +65,7 @@ export function TaskItem({ task, onPress, onToggle, showProject = true }: TaskIt
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: 4 }}>
           <View style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: priorityColor }} />
           <Text
-            style={[Typography.body, { fontWeight: '500', flex: 1 }, isCompleted && { textDecorationLine: 'line-through', color: Colors.textMuted }]}
+            style={[typography.body, { fontWeight: '500', flex: 1 }, isCompleted && { textDecorationLine: 'line-through', color: colors.textMuted }]}
             numberOfLines={2}
           >
             {task.title}
@@ -71,7 +73,7 @@ export function TaskItem({ task, onPress, onToggle, showProject = true }: TaskIt
         </View>
 
         {task.description ? (
-          <Text style={[Typography.bodySmall, { color: Colors.textMuted, marginBottom: 6 }]} numberOfLines={1}>
+          <Text style={[typography.bodySmall, { color: colors.textMuted, marginBottom: 6 }]} numberOfLines={1}>
             {task.description}
           </Text>
         ) : null}
@@ -83,8 +85,8 @@ export function TaskItem({ task, onPress, onToggle, showProject = true }: TaskIt
 
           {task.due_date && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="calendar-outline" size={11} color={isOverdue ? Colors.danger : Colors.textMuted} />
-              <Text style={[Typography.caption, { color: isOverdue ? Colors.danger : Colors.textMuted }]}>
+              <Ionicons name="calendar-outline" size={11} color={isOverdue ? colors.danger : colors.textMuted} />
+              <Text style={[typography.caption, { color: isOverdue ? colors.danger : colors.textMuted }]}>
                 {format(new Date(task.due_date), 'd MMM', { locale: es })}
               </Text>
             </View>
@@ -92,8 +94,8 @@ export function TaskItem({ task, onPress, onToggle, showProject = true }: TaskIt
 
           {totalCount > 0 && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="list-outline" size={11} color={Colors.textMuted} />
-              <Text style={[Typography.caption, { color: completedCount === totalCount ? Colors.success : Colors.textMuted }]}>
+              <Ionicons name="list-outline" size={11} color={colors.textMuted} />
+              <Text style={[typography.caption, { color: completedCount === totalCount ? colors.success : colors.textMuted }]}>
                 {completedCount}/{totalCount}
               </Text>
             </View>
@@ -101,8 +103,8 @@ export function TaskItem({ task, onPress, onToggle, showProject = true }: TaskIt
 
           {(task.floor || task.zone) && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="layers-outline" size={11} color={Colors.textMuted} />
-              <Text style={Typography.caption}>{[task.floor, task.zone].filter(Boolean).join(' · ')}</Text>
+              <Ionicons name="layers-outline" size={11} color={colors.textMuted} />
+              <Text style={typography.caption}>{[task.floor, task.zone].filter(Boolean).join(' · ')}</Text>
             </View>
           )}
         </View>

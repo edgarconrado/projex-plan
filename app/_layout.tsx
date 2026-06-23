@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import Constants from 'expo-constants';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from '../src/lib/AuthContext';
+import { ThemeProvider } from '../src/lib/ThemeContext';
 import { Colors } from '../src/lib/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -64,15 +65,17 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.background }}>
       <AuthProvider>
-        <StatusBar style="light" backgroundColor={Colors.background} />
-        <Stack screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: Colors.background },
-          animation: 'slide_from_right',
-        }}>
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(tabs)" />
-        </Stack>
+        <ThemeProvider>
+          <StatusBar style="light" backgroundColor={Colors.background} />
+          <Stack screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: Colors.background },
+            animation: 'slide_from_right',
+          }}>
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(tabs)" />
+          </Stack>
+        </ThemeProvider>
       </AuthProvider>
     </GestureHandlerRootView>
   );

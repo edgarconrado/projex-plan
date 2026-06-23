@@ -7,32 +7,37 @@ import { useAuth } from '../../src/lib/AuthContext';
 import { useProjects } from '../../src/hooks/useProjects';
 import { useTasks } from '../../src/hooks/useTasks';
 import { useProjectStore } from '../../src/stores';
-import { Colors, Typography, Spacing, Radius, getStatusColor, getStatusLabel, getPriorityColor } from '../../src/lib/theme';
+import { Spacing, Radius, getStatusColor, getStatusLabel, getPriorityColor } from '../../src/lib/theme';
+import { useTheme } from '../../src/lib/ThemeContext';
 import { ProgressBar, Avatar } from '../../src/components/ui';
 import { DonutChart, DonutLegend } from '../../src/components/ui/DonutChart';
 import { HorizontalBarChart } from '../../src/components/ui/HorizontalBarChart';
 
-function StatCard({ label, value, icon, color }: { label: string; value: number | string; icon: string; color: string }) {
+function StatCard({ label, value, icon, color, colors, typography }: {
+  label: string; value: number | string; icon: string; color: string;
+  colors: ReturnType<typeof useTheme>['colors']; typography: ReturnType<typeof useTheme>['typography'];
+}) {
   return (
-    <View style={{ flex: 1, backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: Colors.border, padding: Spacing.md }}>
+    <View style={{ flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md }}>
       <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: `${color}20`, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm }}>
         <Ionicons name={icon as never} size={16} color={color} />
       </View>
-      <Text style={{ fontSize: 24, fontWeight: '700', color: Colors.textPrimary }}>{value}</Text>
-      <Text style={[Typography.caption, { marginTop: 2 }]}>{label}</Text>
+      <Text style={{ fontSize: 24, fontWeight: '700', color: colors.textPrimary }}>{value}</Text>
+      <Text style={[typography.caption, { marginTop: 2 }]}>{label}</Text>
     </View>
   );
 }
 
-function SectionCard({ children }: { children: React.ReactNode }) {
+function SectionCard({ children, colors }: { children: React.ReactNode; colors: ReturnType<typeof useTheme>['colors'] }) {
   return (
-    <View style={{ backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: Colors.border, padding: Spacing.lg }}>
+    <View style={{ backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.lg }}>
       {children}
     </View>
   );
 }
 
 export default function DashboardScreen() {
+  const { colors, typography } = useTheme();
   const { profile } = useAuth();
   const { projects, fetchProjects } = useProjects();
   const { tasks, fetchTasks } = useTasks();
@@ -62,10 +67,10 @@ export default function DashboardScreen() {
   const taskProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   const statusSegments = [
-    { label: 'Completadas', value: completedTasks, color: Colors.success },
-    { label: 'En progreso', value: inProgressTasks, color: Colors.statusActive },
-    { label: 'En revisión', value: inReviewTasks, color: Colors.info },
-    { label: 'Pendientes', value: pendingTasks, color: Colors.textMuted },
+    { label: 'Completadas', value: completedTasks, color: colors.success },
+    { label: 'En progreso', value: inProgressTasks, color: colors.statusActive },
+    { label: 'En revisión', value: inReviewTasks, color: colors.info },
+    { label: 'Pendientes', value: pendingTasks, color: colors.textMuted },
   ];
 
   const priorityCounts = {
@@ -90,16 +95,16 @@ export default function DashboardScreen() {
   const greeting = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches';
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
         contentContainerStyle={{ padding: Spacing.lg, paddingBottom: 100, gap: Spacing.xl }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
-            <Text style={[Typography.bodySmall, { color: Colors.textMuted }]}>{greeting},</Text>
-            <Text style={Typography.h2}>{profile?.full_name?.split(' ')[0] ?? 'Usuario'} 👋</Text>
+            <Text style={[typography.bodySmall, { color: colors.textMuted }]}>{greeting},</Text>
+            <Text style={typography.h2}>{profile?.full_name?.split(' ')[0] ?? 'Usuario'} 👋</Text>
           </View>
           {profile && <Avatar name={profile.full_name} size={44} />}
         </View>
@@ -109,33 +114,33 @@ export default function DashboardScreen() {
           <TouchableOpacity
             onPress={() => router.push('/(tabs)/tasks' as never)}
             style={{
-              backgroundColor: Colors.primaryMuted, borderRadius: Radius.lg,
-              borderWidth: 1, borderColor: Colors.primary,
+              backgroundColor: colors.primaryMuted, borderRadius: Radius.lg,
+              borderWidth: 1, borderColor: colors.primary,
               padding: Spacing.lg,
               flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
             }}
           >
-            <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="briefcase" size={20} color={Colors.textInverse} />
+            <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="briefcase" size={20} color={colors.textInverse} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[Typography.caption, { color: Colors.primary, fontWeight: '600' }]}>PROYECTO ACTIVO</Text>
-              <Text style={[Typography.body, { fontWeight: '600', marginTop: 1 }]} numberOfLines={1}>{activeProject.name}</Text>
+              <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>PROYECTO ACTIVO</Text>
+              <Text style={[typography.body, { fontWeight: '600', marginTop: 1 }]} numberOfLines={1}>{activeProject.name}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.primary} />
+            <Ionicons name="chevron-forward" size={18} color={colors.primary} />
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
             onPress={() => router.push('/(tabs)/projects' as never)}
             style={{
-              backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.lg,
-              borderWidth: 1, borderColor: Colors.border, borderStyle: 'dashed',
+              backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg,
+              borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed',
               padding: Spacing.lg,
               flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
             }}
           >
-            <Ionicons name="add-circle-outline" size={24} color={Colors.textMuted} />
-            <Text style={[Typography.bodySmall, { color: Colors.textMuted, flex: 1 }]}>
+            <Ionicons name="add-circle-outline" size={24} color={colors.textMuted} />
+            <Text style={[typography.bodySmall, { color: colors.textMuted, flex: 1 }]}>
               Selecciona un proyecto activo para ver sus estadísticas
             </Text>
           </TouchableOpacity>
@@ -145,16 +150,16 @@ export default function DashboardScreen() {
           <>
             {/* Stats rápidas del proyecto activo */}
             <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-              <StatCard label="Tareas" value={totalTasks} icon="checkbox-outline" color={Colors.primary} />
-              <StatCard label="Completadas" value={completedTasks} icon="checkmark-circle-outline" color={Colors.success} />
-              <StatCard label="Vencidas" value={overdueTasks} icon="alert-circle-outline" color={overdueTasks > 0 ? Colors.danger : Colors.textMuted} />
+              <StatCard colors={colors} typography={typography} label="Tareas" value={totalTasks} icon="checkbox-outline" color={colors.primary} />
+              <StatCard colors={colors} typography={typography} label="Completadas" value={completedTasks} icon="checkmark-circle-outline" color={colors.success} />
+              <StatCard colors={colors} typography={typography} label="Vencidas" value={overdueTasks} icon="alert-circle-outline" color={overdueTasks > 0 ? colors.danger : colors.textMuted} />
             </View>
 
             {/* Progreso con dona */}
-            <SectionCard>
-              <Text style={[Typography.h4, { marginBottom: Spacing.lg }]}>Progreso de "{activeProject.name}"</Text>
+            <SectionCard colors={colors}>
+              <Text style={[typography.h4, { marginBottom: Spacing.lg }]}>Progreso de "{activeProject.name}"</Text>
               {totalTasks === 0 ? (
-                <Text style={[Typography.bodySmall, { color: Colors.textMuted, textAlign: 'center', paddingVertical: Spacing.lg }]}>
+                <Text style={[typography.bodySmall, { color: colors.textMuted, textAlign: 'center', paddingVertical: Spacing.lg }]}>
                   Aún no hay tareas en este proyecto
                 </Text>
               ) : (
@@ -173,8 +178,8 @@ export default function DashboardScreen() {
 
             {/* Distribución por prioridad */}
             {totalTasks > 0 && (
-              <SectionCard>
-                <Text style={[Typography.h4, { marginBottom: Spacing.lg }]}>Tareas por prioridad</Text>
+              <SectionCard colors={colors}>
+                <Text style={[typography.h4, { marginBottom: Spacing.lg }]}>Tareas por prioridad</Text>
                 <HorizontalBarChart segments={prioritySegments} />
               </SectionCard>
             )}
@@ -184,19 +189,19 @@ export default function DashboardScreen() {
         {/* Lista de proyectos */}
         <View>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md }}>
-            <Text style={Typography.h4}>Todos los proyectos</Text>
+            <Text style={typography.h4}>Todos los proyectos</Text>
             <TouchableOpacity onPress={() => router.push('/(tabs)/projects' as never)}>
-              <Text style={{ fontSize: 13, color: Colors.primary, fontWeight: '500' }}>Ver todos</Text>
+              <Text style={{ fontSize: 13, color: colors.primary, fontWeight: '500' }}>Ver todos</Text>
             </TouchableOpacity>
           </View>
 
           {recentProjects.length === 0 ? (
             <TouchableOpacity
               onPress={() => router.push('/(tabs)/projects' as never)}
-              style={{ backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 1, borderColor: Colors.border, borderStyle: 'dashed', padding: Spacing.xl, alignItems: 'center', gap: Spacing.sm }}
+              style={{ backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', padding: Spacing.xl, alignItems: 'center', gap: Spacing.sm }}
             >
-              <Ionicons name="add-circle-outline" size={32} color={Colors.textMuted} />
-              <Text style={[Typography.bodySmall, { color: Colors.textMuted }]}>Crea tu primer proyecto</Text>
+              <Ionicons name="add-circle-outline" size={32} color={colors.textMuted} />
+              <Text style={[typography.bodySmall, { color: colors.textMuted }]}>Crea tu primer proyecto</Text>
             </TouchableOpacity>
           ) : (
             <View style={{ gap: Spacing.sm }}>
@@ -207,24 +212,24 @@ export default function DashboardScreen() {
                     key={project.id}
                     onPress={() => setActiveProjectId(project.id)}
                     style={{
-                      backgroundColor: isActive ? Colors.primaryMuted : Colors.surfaceSecondary,
+                      backgroundColor: isActive ? colors.primaryMuted : colors.surfaceSecondary,
                       borderRadius: Radius.lg, borderWidth: isActive ? 1 : 0.5,
-                      borderColor: isActive ? Colors.primary : Colors.border,
+                      borderColor: isActive ? colors.primary : colors.border,
                       padding: Spacing.md,
                       flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
                     }}
                   >
                     <View style={{ width: 4, height: 40, borderRadius: 2, backgroundColor: getStatusColor(project.status) }} />
                     <View style={{ flex: 1 }}>
-                      <Text style={[Typography.body, { fontWeight: '500' }]} numberOfLines={1}>{project.name}</Text>
-                      <Text style={[Typography.caption, { color: Colors.textMuted, marginTop: 2 }]}>
+                      <Text style={[typography.body, { fontWeight: '500' }]} numberOfLines={1}>{project.name}</Text>
+                      <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
                         {getStatusLabel(project.status)}
                       </Text>
                     </View>
                     {isActive ? (
-                      <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
+                      <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
                     ) : (
-                      <Ionicons name="ellipse-outline" size={20} color={Colors.textMuted} />
+                      <Ionicons name="ellipse-outline" size={20} color={colors.textMuted} />
                     )}
                   </TouchableOpacity>
                 );

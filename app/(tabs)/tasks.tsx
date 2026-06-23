@@ -8,7 +8,8 @@ import { useProjects } from '../../src/hooks/useProjects';
 import { useProjectStore } from '../../src/stores';
 import { TaskItem } from '../../src/components/tasks/TaskItem';
 import { TaskFormModal } from '../../src/components/tasks/TaskFormModal';
-import { Colors, Typography, Spacing, Radius } from '../../src/lib/theme';
+import { Spacing, Radius } from '../../src/lib/theme';
+import { useTheme } from '../../src/lib/ThemeContext';
 import { EmptyState } from '../../src/components/ui';
 import { TaskItemSkeleton } from '../../src/components/ui/SkeletonLoader';
 import { Task, TaskPriority, TaskStatus } from '../../src/types';
@@ -31,6 +32,7 @@ const PRIORITY_FILTERS: { value: TaskPriority | 'all'; label: string }[] = [
 ];
 
 export default function TasksScreen() {
+  const { colors, typography } = useTheme();
   const { activeProjectId, setActiveProjectId } = useProjectStore();
   const { tasks, isLoading, fetchTasks, createTask, toggleTaskStatus, deleteTask } = useTasks(activeProjectId ?? undefined);
   const { projects, fetchProjects } = useProjects();
@@ -75,18 +77,18 @@ export default function TasksScreen() {
 
   if (!activeProjectId) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, gap: Spacing.lg }}>
-          <Ionicons name="briefcase-outline" size={48} color={Colors.textMuted} />
-          <Text style={[Typography.h4, { textAlign: 'center' }]}>Selecciona un proyecto activo</Text>
-          <Text style={[Typography.bodySmall, { textAlign: 'center', color: Colors.textMuted }]}>
+          <Ionicons name="briefcase-outline" size={48} color={colors.textMuted} />
+          <Text style={[typography.h4, { textAlign: 'center' }]}>Selecciona un proyecto activo</Text>
+          <Text style={[typography.bodySmall, { textAlign: 'center', color: colors.textMuted }]}>
             Ve a la pestaña Proyectos y toca "Hacer activo" en el proyecto que quieras ver
           </Text>
           <TouchableOpacity
             onPress={() => router.push('/(tabs)/projects' as never)}
-            style={{ backgroundColor: Colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: Radius.md, marginTop: Spacing.sm }}
+            style={{ backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: Radius.md, marginTop: Spacing.sm }}
           >
-            <Text style={{ color: Colors.textInverse, fontWeight: '600' }}>Ir a Proyectos</Text>
+            <Text style={{ color: colors.textInverse, fontWeight: '600' }}>Ir a Proyectos</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -94,19 +96,19 @@ export default function TasksScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, paddingBottom: Spacing.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md }}>
           <View style={{ flex: 1 }}>
-            <Text style={Typography.h2}>Tareas</Text>
-            <Text style={[Typography.caption, { color: Colors.textMuted, marginTop: 2 }]}>{filtered.length} tarea{filtered.length !== 1 ? 's' : ''}</Text>
+            <Text style={typography.h2}>Tareas</Text>
+            <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>{filtered.length} tarea{filtered.length !== 1 ? 's' : ''}</Text>
           </View>
           {/* Botón crear tarea */}
           <TouchableOpacity
             onPress={() => setTaskModalVisible(true)}
-            style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' }}
+            style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Ionicons name="add" size={24} color={Colors.textInverse} />
+            <Ionicons name="add" size={24} color={colors.textInverse} />
           </TouchableOpacity>
         </View>
 
@@ -114,20 +116,20 @@ export default function TasksScreen() {
           onPress={() => setPickerVisible((v) => !v)}
           style={{
             flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-            backgroundColor: Colors.primaryMuted, borderWidth: 0.5, borderColor: Colors.primary,
+            backgroundColor: colors.primaryMuted, borderWidth: 0.5, borderColor: colors.primary,
             borderRadius: Radius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
             marginBottom: Spacing.md,
           }}
         >
-          <Ionicons name="briefcase" size={16} color={Colors.primary} />
-          <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: Colors.primary }} numberOfLines={1}>
+          <Ionicons name="briefcase" size={16} color={colors.primary} />
+          <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: colors.primary }} numberOfLines={1}>
             {activeProject?.name ?? 'Proyecto'}
           </Text>
-          <Ionicons name={pickerVisible ? 'chevron-up' : 'chevron-down'} size={16} color={Colors.primary} />
+          <Ionicons name={pickerVisible ? 'chevron-up' : 'chevron-down'} size={16} color={colors.primary} />
         </TouchableOpacity>
 
         {pickerVisible && (
-          <View style={{ backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 0.5, borderColor: Colors.border, marginBottom: Spacing.md, overflow: 'hidden' }}>
+          <View style={{ backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 0.5, borderColor: colors.border, marginBottom: Spacing.md, overflow: 'hidden' }}>
             {projects.map((p) => (
               <TouchableOpacity
                 key={p.id}
@@ -135,12 +137,12 @@ export default function TasksScreen() {
                 style={{
                   flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
                   paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-                  backgroundColor: p.id === activeProjectId ? Colors.primaryMuted : 'transparent',
-                  borderBottomWidth: 0.5, borderBottomColor: Colors.border,
+                  backgroundColor: p.id === activeProjectId ? colors.primaryMuted : 'transparent',
+                  borderBottomWidth: 0.5, borderBottomColor: colors.border,
                 }}
               >
-                {p.id === activeProjectId && <Ionicons name="checkmark" size={14} color={Colors.primary} />}
-                <Text style={{ fontSize: 13, color: p.id === activeProjectId ? Colors.primary : Colors.textPrimary, fontWeight: p.id === activeProjectId ? '600' : '400' }}>
+                {p.id === activeProjectId && <Ionicons name="checkmark" size={14} color={colors.primary} />}
+                <Text style={{ fontSize: 13, color: p.id === activeProjectId ? colors.primary : colors.textPrimary, fontWeight: p.id === activeProjectId ? '600' : '400' }}>
                   {p.name}
                 </Text>
               </TouchableOpacity>
@@ -148,25 +150,25 @@ export default function TasksScreen() {
           </View>
         )}
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 0.5, borderColor: Colors.border, paddingHorizontal: Spacing.md, gap: Spacing.sm, marginBottom: Spacing.md }}>
-          <Ionicons name="search-outline" size={18} color={Colors.textMuted} />
-          <TextInput value={search} onChangeText={setSearch} placeholder="Buscar tarea..." placeholderTextColor={Colors.textMuted} style={{ flex: 1, color: Colors.textPrimary, fontSize: 15, paddingVertical: 12 }} />
-          {search ? <TouchableOpacity onPress={() => setSearch('')}><Ionicons name="close-circle" size={18} color={Colors.textMuted} /></TouchableOpacity> : null}
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 0.5, borderColor: colors.border, paddingHorizontal: Spacing.md, gap: Spacing.sm, marginBottom: Spacing.md }}>
+          <Ionicons name="search-outline" size={18} color={colors.textMuted} />
+          <TextInput value={search} onChangeText={setSearch} placeholder="Buscar tarea..." placeholderTextColor={colors.textMuted} style={{ flex: 1, color: colors.textPrimary, fontSize: 15, paddingVertical: 12 }} />
+          {search ? <TouchableOpacity onPress={() => setSearch('')}><Ionicons name="close-circle" size={18} color={colors.textMuted} /></TouchableOpacity> : null}
         </View>
 
         <FlatList horizontal data={STATUS_FILTERS} keyExtractor={(i) => i.value} showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.sm }}
           renderItem={({ item }) => (
             <TouchableOpacity onPress={() => setStatusFilter(item.value)}
-              style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full, marginRight: 8, borderWidth: 1, borderColor: statusFilter === item.value ? Colors.primary : Colors.border, backgroundColor: statusFilter === item.value ? Colors.primaryMuted : 'transparent' }}>
-              <Text style={{ fontSize: 12, fontWeight: '500', color: statusFilter === item.value ? Colors.primary : Colors.textSecondary }}>{item.label}</Text>
+              style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full, marginRight: 8, borderWidth: 1, borderColor: statusFilter === item.value ? colors.primary : colors.border, backgroundColor: statusFilter === item.value ? colors.primaryMuted : 'transparent' }}>
+              <Text style={{ fontSize: 12, fontWeight: '500', color: statusFilter === item.value ? colors.primary : colors.textSecondary }}>{item.label}</Text>
             </TouchableOpacity>
           )}
         />
         <FlatList horizontal data={PRIORITY_FILTERS} keyExtractor={(i) => i.value} showsHorizontalScrollIndicator={false}
           renderItem={({ item }) => (
             <TouchableOpacity onPress={() => setPriorityFilter(item.value)}
-              style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full, marginRight: 8, borderWidth: 1, borderColor: priorityFilter === item.value ? Colors.primary : Colors.border, backgroundColor: priorityFilter === item.value ? Colors.primaryMuted : 'transparent' }}>
-              <Text style={{ fontSize: 12, fontWeight: '500', color: priorityFilter === item.value ? Colors.primary : Colors.textSecondary }}>{item.label}</Text>
+              style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full, marginRight: 8, borderWidth: 1, borderColor: priorityFilter === item.value ? colors.primary : colors.border, backgroundColor: priorityFilter === item.value ? colors.primaryMuted : 'transparent' }}>
+              <Text style={{ fontSize: 12, fontWeight: '500', color: priorityFilter === item.value ? colors.primary : colors.textSecondary }}>{item.label}</Text>
             </TouchableOpacity>
           )}
         />
@@ -179,10 +181,10 @@ export default function TasksScreen() {
           data={filtered} keyExtractor={(t) => t.id}
           contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
           ListEmptyComponent={
             <EmptyState
-              icon={<Ionicons name="checkbox-outline" size={48} color={Colors.textMuted} />}
+              icon={<Ionicons name="checkbox-outline" size={48} color={colors.textMuted} />}
               title={search ? 'Sin resultados' : 'Sin tareas'}
               subtitle={search ? 'Intenta con otro término' : `Toca + para crear la primera tarea de ${activeProject?.name ?? 'este proyecto'}`}
             />
