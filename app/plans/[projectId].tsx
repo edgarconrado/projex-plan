@@ -9,6 +9,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePlans } from '../../src/hooks/usePlans';
 import { PlanViewer } from '../../src/components/plans/PlanViewer';
 import { UploadPlanModal } from '../../src/components/plans/UploadPlanModal';
+import { NewRevisionModal } from '../../src/components/plans/NewRevisionModal';
+import { RevisionHistoryModal } from '../../src/components/plans/RevisionHistoryModal';
 import { Colors, Typography, Spacing, Radius } from '../../src/lib/theme';
 import { EmptyState, LoadingOverlay, Badge } from '../../src/components/ui';
 import { Plan } from '../../src/types';
@@ -17,10 +19,13 @@ import { es } from 'date-fns/locale';
 
 export default function PlansScreen() {
   const { projectId, projectName } = useLocalSearchParams<{ projectId: string; projectName: string }>();
-  const { plans, isLoading, uploadProgress, fetchPlans, uploadPlan, deletePlan, addAnnotation, deleteAnnotation } = usePlans(projectId ?? '');
+  const { plans, isLoading, uploadProgress, fetchPlans, uploadPlan, deletePlan, addAnnotation, deleteAnnotation, updateScale, uploadRevision, fetchRevisionHistory } = usePlans(projectId ?? '');
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [revisionModalVisible, setRevisionModalVisible] = useState(false);
+  const [historyModalVisible, setHistoryModalVisible] = useState(false);
+  const [historyTargetPlan, setHistoryTargetPlan] = useState<Plan | null>(null);
 
   useEffect(() => { fetchPlans(); }, [fetchPlans]);
 
@@ -71,12 +76,51 @@ export default function PlansScreen() {
             color={statusColor[plan.status] ?? Colors.textMuted}
             bgColor={`${statusColor[plan.status] ?? Colors.textMuted}20`}
           />
+          <TouchableOpacity
+            onPress={() => { setHistoryTargetPlan(plan); setHistoryModalVisible(true); }}
+            style={{ padding: 6 }}
+          >
+            <Ionicons name="time-outline" size={20} color={Colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={async () => {
+              const history = await fetchRevisionHistory(plan.plan_group_id ?? plan.id);
+              const previous = history.find((p) => !p.is_current_revision);
+              if (!previous) {
+                Alert.alert('Sin revisiones anteriores', 'Este plano todavía no tiene versiones anteriores para comparar.');
+                return;
+              }
+              if (previous.file_type === 'pdf' || plan.file_type === 'pdf') {
+                Alert.alert('No disponible para PDF', 'La comparación visual solo está disponible para imágenes por ahora.');
+                return;
+              }
+              router.push({
+                pathname: '/plans/compare',
+                params: {
+                  planAId: previous.id,
+                  planBId: plan.id,
+                  planGroupId: plan.plan_group_id ?? plan.id,
+                  projectId: projectId ?? '',
+                },
+              } as never);
+            }}
+            style={{ padding: 6 }}
+          >
+            <Ionicons name="swap-horizontal-outline" size={20} color={Colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setRevisionModalVisible(true)}
+            style={{ padding: 6 }}
+          >
+            <Ionicons name="cloud-upload-outline" size={20} color={Colors.primary} />
+          </TouchableOpacity>
         </View>
 
         <PlanViewer
           plan={plan}
           onAddAnnotation={(dto) => addAnnotation(dto)}
           onDeleteAnnotation={(id) => deleteAnnotation(id, plan.id)}
+          onUpdateScale={(planId, scale) => updateScale(planId, scale)}
         />
 
         {/* Leyenda de anotaciones */}
@@ -99,6 +143,26 @@ export default function PlansScreen() {
             </View>
           </View>
         )}
+
+        <NewRevisionModal
+          visible={revisionModalVisible}
+          onClose={() => setRevisionModalVisible(false)}
+          plan={plan}
+          onUpload={async (fileUri, fileName, mimeType) => {
+            const newPlan = await uploadRevision(plan, fileUri, fileName, mimeType);
+            setSelectedPlan(newPlan);
+          }}
+          uploadProgress={uploadProgress}
+        />
+
+        <RevisionHistoryModal
+          visible={historyModalVisible}
+          onClose={() => setHistoryModalVisible(false)}
+          plan={historyTargetPlan}
+          fetchHistory={fetchRevisionHistory}
+          onSelectRevision={(revision) => setSelectedPlan(revision)}
+          projectId={projectId ?? ''}
+        />
       </SafeAreaView>
     );
   }
@@ -180,9 +244,17 @@ export default function PlansScreen() {
                   {format(new Date(item.created_at), 'd MMM yyyy', { locale: es })}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => handleDelete(item)} style={{ padding: Spacing.xs }}>
-                <Ionicons name="trash-outline" size={16} color={Colors.danger} />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                <TouchableOpacity
+                  onPress={(e) => { e.stopPropagation?.(); setHistoryTargetPlan(item); setHistoryModalVisible(true); }}
+                  style={{ padding: Spacing.xs }}
+                >
+                  <Ionicons name="time-outline" size={16} color={Colors.textMuted} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDelete(item)} style={{ padding: Spacing.xs }}>
+                  <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+                </TouchableOpacity>
+              </View>
             </View>
           </TouchableOpacity>
         )}
@@ -193,6 +265,15 @@ export default function PlansScreen() {
         onClose={() => setUploadModalVisible(false)}
         onUpload={uploadPlan}
         uploadProgress={uploadProgress}
+      />
+
+      <RevisionHistoryModal
+        visible={historyModalVisible}
+        onClose={() => setHistoryModalVisible(false)}
+        plan={historyTargetPlan}
+        fetchHistory={fetchRevisionHistory}
+        onSelectRevision={(revision) => setSelectedPlan(revision)}
+        projectId={projectId ?? ''}
       />
     </SafeAreaView>
   );

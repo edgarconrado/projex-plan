@@ -3,6 +3,7 @@ import {
   View, Text, Modal, ScrollView,
   TouchableOpacity, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Task, TaskPriority, TaskStatus, CreateTaskDTO, Profile } from '../../types';
 import { Colors, Typography, Spacing, Radius } from '../../lib/theme';
@@ -92,6 +93,7 @@ export function TaskFormModal({ visible, onClose, onSubmit, projectId, initialDa
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
       <KeyboardAvoidingView
         style={{ flex: 1, backgroundColor: Colors.background }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -197,6 +199,7 @@ export function TaskFormModal({ visible, onClose, onSubmit, projectId, initialDa
           <Button label={isEditing ? 'Guardar cambios' : 'Crear tarea'} onPress={handleSubmit} loading={loading} size="lg" style={{ marginTop: Spacing.sm }} />
         </ScrollView>
       </KeyboardAvoidingView>
+      </SafeAreaView>
     </Modal>
   );
 }

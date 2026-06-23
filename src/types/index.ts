@@ -105,9 +105,14 @@ export interface Plan {
   title: string;
   discipline: string;
   scale?: string | null;
+  scale_real_distance?: number | null;
+  scale_pixel_distance?: number | null;
+  scale_unit?: string | null;
   level: string;
   revision: string;
   status: PlanStatus;
+  plan_group_id?: string | null;
+  is_current_revision?: boolean;
   created_at: string;
   updated_at: string;
   uploader?: Profile;
@@ -128,7 +133,10 @@ export interface PlanAnnotation {
   start_y?: number | null;
   end_x?: number | null;
   end_y?: number | null;
+  pixel_dist?: number | null;
   real_dist?: string | null;
+  plan_scale?: string | null;
+  page_number?: number | null;
   position_x?: number | null;
   position_y?: number | null;
   text?: string | null;
