@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, Modal,
   ScrollView, Dimensions, Alert, TextInput,
-  ActivityIndicator, Linking, Animated, PanResponder,
+  ActivityIndicator, Linking, Animated, PanResponder, AppState,
 } from 'react-native';
 import { Image } from 'react-native';
 import Constants from 'expo-constants';
@@ -13,6 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Plan, PlanAnnotation, AnnotationType } from '../../types';
 import { Colors, Typography, Spacing, Radius } from '../../lib/theme';
 import { useAuth } from '../../lib/AuthContext';
+import { ReferenceModal } from './ReferenceModal';
+import { ImageViewerModal } from './ImageViewerModal';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const VIEWER_H = SCREEN_H * 0.65;
@@ -40,6 +42,7 @@ const ANNOTATION_TOOLS: { type: ToolType; icon: string; label: string }[] = [
   { type: 'pin', icon: 'pin-outline', label: 'Pin' },
   { type: 'text', icon: 'text-outline', label: 'Texto' },
   { type: 'measure', icon: 'analytics-outline', label: 'Medir' },
+  { type: 'reference', icon: 'attach-outline', label: 'Referencia' },
 ];
 
 const SCALE_PRESETS = ['1:25', '1:50', '1:75', '1:100', '1:150', '1:200', '1:500'];
@@ -132,6 +135,24 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
   const [selectedColor, setSelectedColor] = useState(PIN_COLORS[0].color);
   const [labelModalVisible, setLabelModalVisible] = useState(false);
   const [pendingPoint, setPendingPoint] = useState<Point | null>(null);
+  const [pendingReferencePoint, setPendingReferencePoint] = useState<Point | null>(null);
+  // Al abrir un archivo externo (Linking.openURL), Android a veces dispara un
+  // toque "fantasma" al regresar a la app, que reactiva la herramienta activa
+  // sin que el usuario haya tocado nada realmente. Esta bandera lo ignora.
+  const suppressNextTouch = useRef(false);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && suppressNextTouch.current) {
+        // Pequeño delay para dejar pasar el toque fantasma que Android dispara
+        // justo al volver a foreground, y luego limpiar la bandera.
+        setTimeout(() => { suppressNextTouch.current = false; }, 600);
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+  const [referenceModalVisible, setReferenceModalVisible] = useState(false);
+  const [viewerImage, setViewerImage] = useState<{ url: string; name: string } | null>(null);
   const [labelText, setLabelText] = useState('');
   const [selectedAnnotation, setSelectedAnnotation] = useState<PlanAnnotation | null>(null);
   const [imageSize, setImageSize] = useState({ width: SCREEN_W, height: VIEWER_H });
@@ -198,8 +219,18 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
 
   const zoomPanResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => activeToolRef.current === 'none',
-      onMoveShouldSetPanResponder: () => activeToolRef.current === 'none',
+      // No capturamos el toque inicial de inmediato — solo cuando se confirma
+      // que es un gesto de pinch (2 dedos) o un arrastre real con zoom activo.
+      // Esto deja pasar los taps simples hacia los TouchableOpacity hijos
+      // (pines, anotaciones), que de otro modo quedarían bloqueados.
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        if (activeToolRef.current !== 'none') return false;
+        const touches = evt.nativeEvent.touches;
+        if (touches.length === 2) return true;
+        if (currentScale.current > 1 && (Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5)) return true;
+        return false;
+      },
 
       onPanResponderGrant: (evt) => {
         if (evt.nativeEvent.touches.length === 2) {
@@ -286,6 +317,10 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
   };
 
   const handleTouch = useCallback((evt: any) => {
+    if (suppressNextTouch.current) {
+      suppressNextTouch.current = false;
+      return;
+    }
     const tool = activeToolRef.current;
     if (tool === 'none') return;
     const { locationX, locationY } = evt.nativeEvent;
@@ -297,6 +332,13 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
       setPendingPoint(normPt);
       setLabelText('');
       setLabelModalVisible(true);
+      return;
+    }
+
+    if (tool === 'reference') {
+      const normPt = normalize(pt, size.width, size.height);
+      setPendingReferencePoint(normPt);
+      setReferenceModalVisible(true);
       return;
     }
 
@@ -379,7 +421,48 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
     setPendingPoint(null);
   };
 
+  const handleAttachReference = async (params: {
+    attachmentUrl: string | null;
+    attachmentType: string | null;
+    attachmentThumbnail: string | null;
+    documentId: string | null;
+  }) => {
+    if (!pendingReferencePoint || !user) return;
+    await onAddAnnotation({
+      plan_id: plan.id,
+      project_id: plan.project_id,
+      created_by: user.id,
+      color: '#3B82F6',
+      type: 'reference',
+      point_x: pendingReferencePoint.x,
+      point_y: pendingReferencePoint.y,
+      label: null,
+      start_x: null, start_y: null, end_x: null, end_y: null,
+      pixel_dist: null, real_dist: null,
+      position_x: null, position_y: null, text: null,
+      attachment_url: params.attachmentUrl,
+      attachment_type: params.attachmentType,
+      attachment_thumbnail: params.attachmentThumbnail,
+      document_id: params.documentId,
+    } as any);
+    setPendingReferencePoint(null);
+  };
+
   const handleAnnotationPress = (annotation: PlanAnnotation) => {
+    if (annotation.type === 'reference' && annotation.attachment_url) {
+      const isImage = annotation.attachment_type?.startsWith('image/');
+      if (isImage) {
+        setViewerImage({ url: annotation.attachment_url, name: 'Referencia' });
+      } else {
+        suppressNextTouch.current = true;
+        Linking.openURL(annotation.attachment_url).catch(() => {
+          Alert.alert('Error', 'No se pudo abrir el archivo adjunto.');
+        });
+      }
+      // Igual seleccionamos la anotación para que el panel inferior permita eliminarla
+      setSelectedAnnotation(annotation);
+      return;
+    }
     setSelectedAnnotation(annotation);
   };
 
@@ -649,6 +732,33 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
                     </TouchableOpacity>
                   );
                 }
+                if (ann.type === 'reference' && ann.point_x != null && ann.point_y != null) {
+                  const hasThumbnail = !!ann.attachment_thumbnail;
+                  return (
+                    <TouchableOpacity
+                      key={ann.id}
+                      onPress={() => handleAnnotationPress(ann)}
+                      style={{
+                        position: 'absolute',
+                        left: ann.point_x * imageSize.width - 16,
+                        top: ann.point_y * imageSize.height - 16,
+                        width: 32, height: 32, borderRadius: 16,
+                        backgroundColor: hasThumbnail ? undefined : ann.color,
+                        alignItems: 'center', justifyContent: 'center',
+                        borderWidth: 2, borderColor: '#fff',
+                        overflow: 'hidden',
+                        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
+                      }}
+                    >
+                      {hasThumbnail ? (
+                        <Image source={{ uri: ann.attachment_thumbnail! }} style={{ width: 32, height: 32 }} />
+                      ) : (
+                        <Ionicons name="document-attach" size={14} color="#fff" />
+                      )}
+                    </TouchableOpacity>
+                  );
+                }
                 if (ann.type === 'text' && ann.position_x != null && ann.position_y != null) {
                   return (
                     <TouchableOpacity
@@ -740,6 +850,33 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
                     </TouchableOpacity>
                   );
                 }
+                if (ann.type === 'reference' && ann.point_x != null && ann.point_y != null) {
+                  const hasThumbnail = !!ann.attachment_thumbnail;
+                  return (
+                    <TouchableOpacity
+                      key={ann.id}
+                      onPress={() => handleAnnotationPress(ann)}
+                      style={{
+                        position: 'absolute',
+                        left: ann.point_x * imageSize.width - 16,
+                        top: ann.point_y * imageSize.height - 16,
+                        width: 32, height: 32, borderRadius: 16,
+                        backgroundColor: hasThumbnail ? undefined : ann.color,
+                        alignItems: 'center', justifyContent: 'center',
+                        borderWidth: 2, borderColor: '#fff',
+                        overflow: 'hidden',
+                        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
+                      }}
+                    >
+                      {hasThumbnail ? (
+                        <Image source={{ uri: ann.attachment_thumbnail! }} style={{ width: 32, height: 32 }} />
+                      ) : (
+                        <Ionicons name="document-attach" size={14} color="#fff" />
+                      )}
+                    </TouchableOpacity>
+                  );
+                }
                 if (ann.type === 'text' && ann.position_x != null && ann.position_y != null) {
                   return (
                     <TouchableOpacity
@@ -818,6 +955,33 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
                     </TouchableOpacity>
                   );
                 }
+                if (ann.type === 'reference' && ann.point_x != null && ann.point_y != null) {
+                  const hasThumbnail = !!ann.attachment_thumbnail;
+                  return (
+                    <TouchableOpacity
+                      key={ann.id}
+                      onPress={() => handleAnnotationPress(ann)}
+                      style={{
+                        position: 'absolute',
+                        left: ann.point_x * imageSize.width - 16,
+                        top: ann.point_y * imageSize.height - 16,
+                        width: 32, height: 32, borderRadius: 16,
+                        backgroundColor: hasThumbnail ? undefined : ann.color,
+                        alignItems: 'center', justifyContent: 'center',
+                        borderWidth: 2, borderColor: '#fff',
+                        overflow: 'hidden',
+                        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
+                      }}
+                    >
+                      {hasThumbnail ? (
+                        <Image source={{ uri: ann.attachment_thumbnail! }} style={{ width: 32, height: 32 }} />
+                      ) : (
+                        <Ionicons name="document-attach" size={14} color="#fff" />
+                      )}
+                    </TouchableOpacity>
+                  );
+                }
                 if (ann.type === 'text' && ann.position_x != null && ann.position_y != null) {
                   return (
                     <TouchableOpacity
@@ -887,6 +1051,33 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
                     </TouchableOpacity>
                   );
                 }
+                if (ann.type === 'reference' && ann.point_x != null && ann.point_y != null) {
+                  const hasThumbnail = !!ann.attachment_thumbnail;
+                  return (
+                    <TouchableOpacity
+                      key={ann.id}
+                      onPress={() => handleAnnotationPress(ann)}
+                      style={{
+                        position: 'absolute',
+                        left: ann.point_x * imageSize.width - 16,
+                        top: ann.point_y * imageSize.height - 16,
+                        width: 32, height: 32, borderRadius: 16,
+                        backgroundColor: hasThumbnail ? undefined : ann.color,
+                        alignItems: 'center', justifyContent: 'center',
+                        borderWidth: 2, borderColor: '#fff',
+                        overflow: 'hidden',
+                        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
+                      }}
+                    >
+                      {hasThumbnail ? (
+                        <Image source={{ uri: ann.attachment_thumbnail! }} style={{ width: 32, height: 32 }} />
+                      ) : (
+                        <Ionicons name="document-attach" size={14} color="#fff" />
+                      )}
+                    </TouchableOpacity>
+                  );
+                }
                 if (ann.type === 'text' && ann.position_x != null && ann.position_y != null) {
                   return (
                     <TouchableOpacity
@@ -927,15 +1118,26 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
           <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: selectedAnnotation.color }} />
           <View style={{ flex: 1 }}>
             <Text style={[Typography.bodySmall, { fontWeight: '600' }]}>
-              {selectedAnnotation.type === 'pin' ? '📍 Pin' : selectedAnnotation.type === 'measure' ? '📏 Medición' : '📝 Texto'}
+              {selectedAnnotation.type === 'pin' ? '📍 Pin'
+                : selectedAnnotation.type === 'measure' ? '📏 Medición'
+                : selectedAnnotation.type === 'reference' ? '📎 Referencia'
+                : '📝 Texto'}
               {selectedAnnotation.label ? ` · ${selectedAnnotation.label}` : ''}
               {selectedAnnotation.text ? ` · ${selectedAnnotation.text}` : ''}
               {selectedAnnotation.real_dist ? ` · ${selectedAnnotation.real_dist}` : ''}
             </Text>
             <Text style={[Typography.caption, { color: Colors.textMuted }]}>
-              Toca para cerrar · Eliminar para borrar
+              {selectedAnnotation.type === 'reference' ? 'Toca el clip para abrir el adjunto' : 'Toca para cerrar · Eliminar para borrar'}
             </Text>
           </View>
+          {selectedAnnotation.type === 'reference' && selectedAnnotation.attachment_url && (
+            <TouchableOpacity
+              onPress={() => Linking.openURL(selectedAnnotation.attachment_url!)}
+              style={{ padding: Spacing.sm }}
+            >
+              <Ionicons name="open-outline" size={18} color={Colors.primary} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity onPress={handleDeleteSelected} style={{ padding: Spacing.sm }}>
             <Ionicons name="trash-outline" size={18} color={Colors.danger} />
           </TouchableOpacity>
@@ -986,6 +1188,20 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
         scale={planScale}
         onSave={handleSaveScale}
         onClose={() => setScaleModalVisible(false)}
+      />
+
+      <ReferenceModal
+        visible={referenceModalVisible}
+        onClose={() => { setReferenceModalVisible(false); setPendingReferencePoint(null); }}
+        projectId={plan.project_id}
+        onAttach={handleAttachReference}
+      />
+
+      <ImageViewerModal
+        visible={!!viewerImage}
+        imageUrl={viewerImage?.url ?? null}
+        fileName={viewerImage?.name}
+        onClose={() => setViewerImage(null)}
       />
     </View>
   );
