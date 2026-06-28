@@ -589,11 +589,18 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
         </View>
       )}
 
-      <View style={{
-        flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-        paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-        backgroundColor: Colors.surface, borderBottomWidth: 0.5, borderBottomColor: Colors.border,
-      }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{
+          flexGrow: 0, flexShrink: 0,
+          backgroundColor: Colors.surface, borderBottomWidth: 0.5, borderBottomColor: Colors.border,
+        }}
+        contentContainerStyle={{
+          flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+          paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+        }}
+      >
         {ANNOTATION_TOOLS.map((tool) => (
           <TouchableOpacity
             key={tool.type}
@@ -603,7 +610,7 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
               resetZoom();
             }}
             style={{
-              flexDirection: 'row', alignItems: 'center', gap: 4,
+              flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0,
               paddingHorizontal: 12, paddingVertical: 7, borderRadius: Radius.md,
               backgroundColor: activeTool === tool.type ? Colors.primaryMuted : 'transparent',
               borderWidth: 1,
@@ -627,7 +634,7 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
             }}
           />
         ))}
-      </View>
+      </ScrollView>
 
       <View style={{ flex: 1, backgroundColor: '#141414', overflow: 'hidden' }}>
         <View style={{ position: 'relative' }}>
