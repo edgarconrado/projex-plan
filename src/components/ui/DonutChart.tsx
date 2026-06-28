@@ -27,7 +27,11 @@ export function DonutChart({ segments, size = 140, strokeWidth = 18, centerLabel
     .map((seg) => {
       const fraction = total > 0 ? seg.value / total : 0;
       const dashLength = fraction * circumference;
-      const dashOffset = circumference - cumulativeOffset;
+      // El offset avanza el punto de inicio del arco según cuánto ya se dibujó
+      // de los segmentos anteriores. Debe ser negativo (no "circumference - x")
+      // para que los arcos se acomoden uno tras otro sin solaparse ni dejar
+      // el círculo vacío cuando hay un solo segmento al 100%.
+      const dashOffset = -cumulativeOffset;
       cumulativeOffset += dashLength;
       return { ...seg, dashLength, dashOffset };
     });

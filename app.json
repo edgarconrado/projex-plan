@@ -24,6 +24,7 @@
         "backgroundColor": "#0A0A0A"
       },
       "package": "com.jacarandalab.projexplan",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",

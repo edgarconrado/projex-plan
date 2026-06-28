@@ -13,26 +13,27 @@ const isExpoGo = Constants.appOwnership === 'expo';
  */
 export async function registerForPushNotifications(userId: string): Promise<string | null> {
   if (isExpoGo) {
-    // Silencioso — no intentamos siquiera importar expo-notifications dinámicamente
+    console.log('[Push] Saltando registro: estamos en Expo Go');
     return null;
   }
 
   try {
-    // Import dinámico — solo se carga si NO estamos en Expo Go
     const Notifications = await import('expo-notifications');
-    const Device = await import('expo-device');
-
-    if (!Device.isDevice) return null;
 
     const { status: existing } = await Notifications.getPermissionsAsync();
     let finalStatus = existing;
+    console.log('[Push] Permiso existente:', existing);
 
     if (existing !== 'granted') {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
+      console.log('[Push] Permiso solicitado, resultado:', status);
     }
 
-    if (finalStatus !== 'granted') return null;
+    if (finalStatus !== 'granted') {
+      console.log('[Push] Abortando: permiso no concedido, status final:', finalStatus);
+      return null;
+    }
 
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
@@ -46,19 +47,39 @@ export async function registerForPushNotifications(userId: string): Promise<stri
 
     const projectId =
       Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+    console.log('[Push] projectId resuelto:', projectId);
 
-    if (!projectId) return null;
+    if (!projectId) {
+      console.log('[Push] Abortando: no se encontró projectId en Constants.expoConfig.extra.eas ni easConfig');
+      return null;
+    }
 
+    console.log('[Push] Solicitando token a Expo...');
     const tokenPromise = Notifications.getExpoPushTokenAsync({ projectId });
-    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 10000));
     const result = await Promise.race([tokenPromise, timeoutPromise]);
-    if (!result) return null;
+
+    if (!result) {
+      console.log('[Push] Abortando: timeout de 10s esperando getExpoPushTokenAsync (puede tardar la primera vez en Android por FCM)');
+      return null;
+    }
 
     const token = result.data;
-    await supabase.from('profiles').update({ expo_push_token: token }).eq('id', userId);
+    console.log('[Push] Token obtenido:', token);
+
+    const { error } = await supabase.from('profiles').update({ expo_push_token: token }).eq('id', userId);
+    if (error) {
+      console.log('[Push] ERROR guardando token en Supabase:', JSON.stringify(error));
+    } else {
+      console.log('[Push] Token guardado correctamente en el perfil');
+    }
     return token;
   } catch (e) {
     console.warn('[Push] No disponible en este entorno:', e instanceof Error ? e.message : e);
+    console.warn('[Push] Detalle completo del error:', JSON.stringify(e, Object.getOwnPropertyNames(e instanceof Error ? e : {})));
+    if (e instanceof Error && e.stack) {
+      console.warn('[Push] Stack:', e.stack);
+    }
     return null;
   }
 }
