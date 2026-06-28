@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTasks } from '../../src/hooks/useTasks';
 import { useProjects } from '../../src/hooks/useProjects';
 import { useProjectStore } from '../../src/stores';
+import { useAuth } from '../../src/lib/AuthContext';
 import { TaskItem } from '../../src/components/tasks/TaskItem';
 import { TaskFormModal } from '../../src/components/tasks/TaskFormModal';
 import { Spacing, Radius } from '../../src/lib/theme';
@@ -33,12 +34,14 @@ const PRIORITY_FILTERS: { value: TaskPriority | 'all'; label: string }[] = [
 
 export default function TasksScreen() {
   const { colors, typography } = useTheme();
+  const { profile } = useAuth();
   const { activeProjectId, setActiveProjectId } = useProjectStore();
   const { tasks, isLoading, fetchTasks, createTask, toggleTaskStatus, deleteTask } = useTasks(activeProjectId ?? undefined);
   const { projects, fetchProjects } = useProjects();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | 'all'>('all');
+  const [onlyMine, setOnlyMine] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [taskModalVisible, setTaskModalVisible] = useState(false);
@@ -60,7 +63,8 @@ export default function TasksScreen() {
       (t.description ?? '').toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'all' || t.status === statusFilter;
     const matchPriority = priorityFilter === 'all' || t.priority === priorityFilter;
-    return matchSearch && matchStatus && matchPriority;
+    const matchMine = !onlyMine || t.assigned_to === profile?.id;
+    return matchSearch && matchStatus && matchPriority && matchMine;
   });
 
   const handleDelete = (task: Task) => {
@@ -150,10 +154,24 @@ export default function TasksScreen() {
           </View>
         )}
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 0.5, borderColor: colors.border, paddingHorizontal: Spacing.md, gap: Spacing.sm, marginBottom: Spacing.md }}>
-          <Ionicons name="search-outline" size={18} color={colors.textMuted} />
-          <TextInput value={search} onChangeText={setSearch} placeholder="Buscar tarea..." placeholderTextColor={colors.textMuted} style={{ flex: 1, color: colors.textPrimary, fontSize: 15, paddingVertical: 12 }} />
-          {search ? <TouchableOpacity onPress={() => setSearch('')}><Ionicons name="close-circle" size={18} color={colors.textMuted} /></TouchableOpacity> : null}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md }}>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 0.5, borderColor: colors.border, paddingHorizontal: Spacing.md, gap: Spacing.sm }}>
+            <Ionicons name="search-outline" size={18} color={colors.textMuted} />
+            <TextInput value={search} onChangeText={setSearch} placeholder="Buscar tarea..." placeholderTextColor={colors.textMuted} style={{ flex: 1, color: colors.textPrimary, fontSize: 15, paddingVertical: 12 }} />
+            {search ? <TouchableOpacity onPress={() => setSearch('')}><Ionicons name="close-circle" size={18} color={colors.textMuted} /></TouchableOpacity> : null}
+          </View>
+          <TouchableOpacity
+            onPress={() => setOnlyMine((v) => !v)}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0,
+              paddingHorizontal: 12, paddingVertical: 12, borderRadius: Radius.md,
+              borderWidth: 1, borderColor: onlyMine ? colors.primary : colors.border,
+              backgroundColor: onlyMine ? colors.primaryMuted : colors.surfaceSecondary,
+            }}
+          >
+            <Ionicons name="person" size={16} color={onlyMine ? colors.primary : colors.textMuted} />
+            <Text style={{ fontSize: 12, fontWeight: '600', color: onlyMine ? colors.primary : colors.textMuted }}>Mis tareas</Text>
+          </TouchableOpacity>
         </View>
 
         <FlatList horizontal data={STATUS_FILTERS} keyExtractor={(i) => i.value} showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.sm }}
