@@ -140,7 +140,7 @@ export default function DocumentsScreen() {
                 ) : null}
                 {item.uploader && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                    <Avatar name={item.uploader.full_name} size={14} />
+                    <Avatar name={item.uploader.full_name} imageUrl={item.uploader.avatar_url} size={14} />
                     <Text style={[Typography.caption, { color: Colors.textMuted }]}>{item.uploader.full_name}</Text>
                   </View>
                 )}

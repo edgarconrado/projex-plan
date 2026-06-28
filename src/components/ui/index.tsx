@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import {
-  View, Text, TouchableOpacity, TextInput, ActivityIndicator,
+  View, Text, TouchableOpacity, TextInput, ActivityIndicator, Image,
   ViewStyle, TextStyle, TextInputProps, TouchableOpacityProps,
 } from 'react-native';
 import { Spacing, Radius } from '../../lib/theme';
@@ -95,9 +95,19 @@ export function Badge({ label, color, bgColor, size = 'sm', style }: {
 }
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
-export function Avatar({ name, size = 36, style }: { name: string; size?: number; style?: ViewStyle }) {
+export function Avatar({ name, imageUrl, size = 36, style }: { name: string; imageUrl?: string | null; size?: number; style?: ViewStyle }) {
   const initials = name.split(' ').slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('');
   const hue = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
+
+  if (imageUrl) {
+    return (
+      <Image
+        source={{ uri: imageUrl }}
+        style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: `hsl(${hue},50%,25%)` }, style]}
+      />
+    );
+  }
+
   return (
     <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: `hsl(${hue},50%,25%)`, alignItems: 'center', justifyContent: 'center' }, style]}>
       <Text style={{ fontSize: size * 0.36, fontWeight: '600', color: `hsl(${hue},80%,75%)` }}>{initials}</Text>

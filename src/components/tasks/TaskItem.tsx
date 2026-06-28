@@ -110,7 +110,7 @@ export function TaskItem({ task, onPress, onToggle, showProject = true }: TaskIt
         </View>
       </View>
 
-      {task.assignee && <Avatar name={task.assignee.full_name} size={28} style={{ marginTop: 2 }} />}
+      {task.assignee && <Avatar name={task.assignee.full_name} imageUrl={task.assignee.avatar_url} size={28} style={{ marginTop: 2 }} />}
     </TouchableOpacity>
   );
 }

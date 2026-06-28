@@ -28,7 +28,7 @@ export function ChatBubble({ message, isOwn, showAvatar }: ChatBubbleProps) {
       {!isOwn && (
         <View style={{ width: 28 }}>
           {showAvatar && message.sender ? (
-            <Avatar name={message.sender.full_name} size={28} />
+            <Avatar name={message.sender.full_name} imageUrl={message.sender.avatar_url} size={28} />
           ) : null}
         </View>
       )}

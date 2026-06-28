@@ -112,7 +112,7 @@ export default function DashboardScreen() {
               <Text style={typography.h2}>{profile?.full_name?.split(' ')[0] ?? 'Usuario'} 👋</Text>
             </View>
           </View>
-          {profile && <Avatar name={profile.full_name} size={44} />}
+          {profile && <Avatar name={profile.full_name} imageUrl={profile.avatar_url} size={44} />}
         </View>
 
         {/* Proyecto activo */}

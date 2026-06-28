@@ -300,7 +300,7 @@ export default function TaskDetailScreen() {
                       backgroundColor: task.assigned_to === m.id ? Colors.primaryMuted : 'transparent',
                     }}
                   >
-                    <Avatar name={m.full_name} size={20} />
+                    <Avatar name={m.full_name} imageUrl={m.avatar_url} size={20} />
                     <Text style={{ fontSize: 13, fontWeight: '500', color: task.assigned_to === m.id ? Colors.primary : Colors.textSecondary }}>
                       {m.full_name.split(' ')[0]}
                     </Text>

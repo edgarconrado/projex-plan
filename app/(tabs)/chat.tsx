@@ -27,7 +27,7 @@ function ConversationItem({ conv, currentUserId, onPress, colors, typography }: 
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}
       style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: colors.border }}>
       <View>
-        <Avatar name={name} size={46} />
+        <Avatar name={name} imageUrl={otherParticipants.length === 1 ? otherParticipants[0].profile?.avatar_url : null} size={46} />
         {isOnline && <View style={{ position: 'absolute', bottom: 0, right: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.success, borderWidth: 2, borderColor: colors.background }} />}
       </View>
       <View style={{ flex: 1 }}>

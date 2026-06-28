@@ -106,7 +106,7 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={{ padding: Spacing.lg, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
         <View style={{ alignItems: 'center', paddingVertical: Spacing.xl }}>
           <TouchableOpacity onPress={handlePickAvatar} style={{ marginBottom: Spacing.lg }}>
-            <Avatar name={profile.full_name} size={88} />
+            <Avatar name={profile.full_name} imageUrl={profile.avatar_url} size={88} />
             <View style={{ position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.background }}>
               <Ionicons name={uploadingAvatar ? 'hourglass-outline' : 'camera-outline'} size={14} color={colors.textInverse} />
             </View>
