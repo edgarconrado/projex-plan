@@ -9,6 +9,7 @@ import { Task, TaskPriority, TaskStatus, CreateTaskDTO, Profile } from '../../ty
 import { Colors, Typography, Spacing, Radius } from '../../lib/theme';
 import { Button, Input } from '../ui';
 import { supabase } from '../../lib/supabase';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 interface TaskFormModalProps {
   visible: boolean;
@@ -39,6 +40,7 @@ export function TaskFormModal({ visible, onClose, onSubmit, projectId, initialDa
   const [priority, setPriority] = useState<TaskPriority>(initialData?.priority ?? 'medium');
   const [status, setStatus] = useState<TaskStatus>(initialData?.status ?? 'pending');
   const [dueDate, setDueDate] = useState(initialData?.due_date ?? '');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [floor, setFloor] = useState(initialData?.floor ?? '');
   const [zone, setZone] = useState(initialData?.zone ?? '');
   const [assignedTo, setAssignedTo] = useState(initialData?.assigned_to ?? '');
@@ -96,7 +98,7 @@ export function TaskFormModal({ visible, onClose, onSubmit, projectId, initialDa
       <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
       <KeyboardAvoidingView
         style={{ flex: 1, backgroundColor: Colors.background }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: Colors.border }}>
           <TouchableOpacity onPress={onClose}>
@@ -182,8 +184,46 @@ export function TaskFormModal({ visible, onClose, onSubmit, projectId, initialDa
             </View>
           )}
 
-          <Input label="Fecha límite (YYYY-MM-DD)" value={dueDate} onChangeText={setDueDate} placeholder="2025-12-31"
-            leftIcon={<Ionicons name="calendar-outline" size={18} color={Colors.textMuted} />} />
+          <View>
+            <Text style={[Typography.bodySmall, { color: Colors.textSecondary, marginBottom: 6 }]}>Fecha límite</Text>
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(true)}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+                backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md,
+                borderWidth: 0.5, borderColor: Colors.border,
+                paddingHorizontal: Spacing.md, paddingVertical: 14,
+              }}
+            >
+              <Ionicons name="calendar-outline" size={18} color={Colors.textMuted} />
+              <Text style={{ color: dueDate ? Colors.textPrimary : Colors.textMuted, fontSize: 15 }}>
+                {dueDate
+                  ? new Date(dueDate + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
+                  : 'Selecciona una fecha'}
+              </Text>
+              {dueDate ? (
+                <TouchableOpacity onPress={() => setDueDate('')} style={{ marginLeft: 'auto' }}>
+                  <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
+                </TouchableOpacity>
+              ) : null}
+            </TouchableOpacity>
+          </View>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={dueDate ? new Date(dueDate + 'T00:00:00') : new Date()}
+              mode="date"
+              display="default"
+              minimumDate={new Date()}
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(false);
+                if (event.type === 'set' && selectedDate) {
+                  const iso = selectedDate.toISOString().split('T')[0];
+                  setDueDate(iso);
+                }
+              }}
+            />
+          )}
 
           <View style={{ flexDirection: 'row', gap: Spacing.md }}>
             <View style={{ flex: 1 }}>

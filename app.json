@@ -62,7 +62,8 @@
         {
           "locationWhenInUsePermission": "Projex Plan usa tu ubicación para geoetiquetar fotos."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "scheme": "projexplan",
     "newArchEnabled": true,

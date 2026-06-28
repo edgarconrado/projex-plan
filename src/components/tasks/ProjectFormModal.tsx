@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Project, ProjectStatus, CreateProjectDTO } from '../../types';
 import { Colors, Typography, Spacing, Radius } from '../../lib/theme';
 import { Button, Input } from '../ui';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 interface ProjectFormModalProps {
   visible: boolean;
@@ -37,6 +38,7 @@ export function ProjectFormModal({
   const [address, setAddress] = useState(initialData?.address ?? '');
   const [budget, setBudget] = useState(initialData?.budget ? String(initialData.budget) : '');
   const [deadline, setDeadline] = useState(initialData?.deadline ?? '');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -68,7 +70,7 @@ export function ProjectFormModal({
       <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
       <KeyboardAvoidingView
         style={{ flex: 1, backgroundColor: Colors.background }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/* Header */}
         <View style={{
@@ -163,13 +165,45 @@ export function ProjectFormModal({
             leftIcon={<Ionicons name="cash-outline" size={18} color={Colors.textMuted} />}
           />
 
-          <Input
-            label="Fecha límite (YYYY-MM-DD)"
-            value={deadline}
-            onChangeText={setDeadline}
-            placeholder="2025-12-31"
-            leftIcon={<Ionicons name="calendar-outline" size={18} color={Colors.textMuted} />}
-          />
+          <View>
+            <Text style={[Typography.bodySmall, { color: Colors.textSecondary, marginBottom: 6 }]}>Fecha límite</Text>
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(true)}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+                backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md,
+                borderWidth: 0.5, borderColor: Colors.border,
+                paddingHorizontal: Spacing.md, paddingVertical: 14,
+              }}
+            >
+              <Ionicons name="calendar-outline" size={18} color={Colors.textMuted} />
+              <Text style={{ color: deadline ? Colors.textPrimary : Colors.textMuted, fontSize: 15 }}>
+                {deadline
+                  ? new Date(deadline + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
+                  : 'Selecciona una fecha'}
+              </Text>
+              {deadline ? (
+                <TouchableOpacity onPress={() => setDeadline('')} style={{ marginLeft: 'auto' }}>
+                  <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
+                </TouchableOpacity>
+              ) : null}
+            </TouchableOpacity>
+          </View>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={deadline ? new Date(deadline + 'T00:00:00') : new Date()}
+              mode="date"
+              display="default"
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(false);
+                if (event.type === 'set' && selectedDate) {
+                  const iso = selectedDate.toISOString().split('T')[0];
+                  setDeadline(iso);
+                }
+              }}
+            />
+          )}
 
           <Button
             label={isEditing ? 'Guardar cambios' : 'Crear proyecto'}
