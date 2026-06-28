@@ -43,7 +43,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
+          "icon": "./assets/notification-icon.png",
           "color": "#FFD700",
           "sounds": [],
           "mode": "production"

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -132,11 +132,16 @@ export default function ProjectsScreen() {
                   )}
                 </View>
 
-                <View style={{ flexDirection: 'row', gap: Spacing.xs, marginTop: -Spacing.xs, marginBottom: Spacing.sm, paddingHorizontal: Spacing.xs }}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={{ marginTop: -Spacing.xs, marginBottom: Spacing.sm }}
+                  contentContainerStyle={{ flexDirection: 'row', gap: Spacing.xs, paddingHorizontal: Spacing.xs }}
+                >
                   {!isActive && (
                     <TouchableOpacity
                       onPress={() => handleSetActive(item)}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.surfaceSecondary, borderWidth: 0.5, borderColor: colors.primary }}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.surfaceSecondary, borderWidth: 0.5, borderColor: colors.primary }}
                     >
                       <Ionicons name="star-outline" size={13} color={colors.primary} />
                       <Text style={{ fontSize: 12, fontWeight: '600', color: colors.primary }}>Hacer activo</Text>
@@ -144,33 +149,33 @@ export default function ProjectsScreen() {
                   )}
                   <TouchableOpacity
                     onPress={() => router.push({ pathname: '/plans/[projectId]', params: { projectId: item.id, projectName: item.name } } as never)}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.surfaceSecondary, borderWidth: 0.5, borderColor: colors.border }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.surfaceSecondary, borderWidth: 0.5, borderColor: colors.border }}
                   >
                     <Ionicons name="map-outline" size={13} color={colors.textMuted} />
                     <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>Planos</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => router.push({ pathname: '/documents/[projectId]', params: { projectId: item.id, projectName: item.name } } as never)}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.surfaceSecondary, borderWidth: 0.5, borderColor: colors.border }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.surfaceSecondary, borderWidth: 0.5, borderColor: colors.border }}
                   >
                     <Ionicons name="folder-outline" size={13} color={colors.textMuted} />
                     <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>Docs</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => { setEditingProject(item); setModalVisible(true); }}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.surfaceSecondary, borderWidth: 0.5, borderColor: colors.border }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.surfaceSecondary, borderWidth: 0.5, borderColor: colors.border }}
                   >
                     <Ionicons name="pencil-outline" size={13} color={colors.textMuted} />
                     <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>Editar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => handleDelete(item)}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.dangerMuted, borderWidth: 0.5, borderColor: colors.danger }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.dangerMuted, borderWidth: 0.5, borderColor: colors.danger }}
                   >
                     <Ionicons name="trash-outline" size={13} color={colors.danger} />
                     <Text style={{ fontSize: 12, fontWeight: '500', color: colors.danger }}>Eliminar</Text>
                   </TouchableOpacity>
-                </View>
+                </ScrollView>
               </View>
             );
           }}

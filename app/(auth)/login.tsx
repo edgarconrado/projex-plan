@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Image } from 'react-native';
 import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/lib/AuthContext';
@@ -29,9 +29,10 @@ export default function LoginScreen() {
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, padding: Spacing.xl }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={{ alignItems: 'center', marginTop: 80, marginBottom: 48 }}>
-          <View style={{ width: 72, height: 72, borderRadius: Radius.xl, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.lg }}>
-            <Ionicons name="construct" size={36} color={Colors.textInverse} />
-          </View>
+          <Image
+            source={require('../../assets/icon.png')}
+            style={{ width: 88, height: 88, borderRadius: Radius.xl, marginBottom: Spacing.lg }}
+          />
           <Text style={[Typography.h1, { color: Colors.primary }]}>Projex Plan</Text>
           <Text style={[Typography.bodySmall, { marginTop: 6 }]}>Gestión de proyectos de construcción</Text>
         </View>

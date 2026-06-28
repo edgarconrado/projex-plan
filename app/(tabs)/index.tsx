@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -102,9 +102,15 @@ export default function DashboardScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View>
-            <Text style={[typography.bodySmall, { color: colors.textMuted }]}>{greeting},</Text>
-            <Text style={typography.h2}>{profile?.full_name?.split(' ')[0] ?? 'Usuario'} 👋</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+            <Image
+              source={require('../../assets/icon.png')}
+              style={{ width: 36, height: 36, borderRadius: 9 }}
+            />
+            <View>
+              <Text style={[typography.bodySmall, { color: colors.textMuted }]}>{greeting},</Text>
+              <Text style={typography.h2}>{profile?.full_name?.split(' ')[0] ?? 'Usuario'} 👋</Text>
+            </View>
           </View>
           {profile && <Avatar name={profile.full_name} size={44} />}
         </View>
