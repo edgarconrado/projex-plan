@@ -2,6 +2,18 @@ import { useState, useCallback } from 'react';
 import { supabase, uploadFile, generateFileName, STORAGE_BUCKETS } from '../lib/supabase';
 import { Plan, PlanAnnotation, CreateAnnotationDTO } from '../types';
 import { useAuth } from '../lib/AuthContext';
+import { notifyUsers, saveNotification } from '../lib/notifications';
+
+// Devuelve los IDs de todos los miembros del proyecto, excluyendo al propio actor.
+async function getOtherProjectMemberIds(projectId: string, excludeUserId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from('project_members')
+    .select('user_id')
+    .eq('project_id', projectId);
+  return (data ?? [])
+    .map((m: any) => m.user_id)
+    .filter((id: string) => id !== excludeUserId);
+}
 
 // Incrementa un código de revisión tipo letra (A→B→C...) o número (R0→R1→R2...).
 // Si no reconoce el patrón, simplemente le agrega un sufijo.
@@ -101,6 +113,21 @@ export function usePlans(projectId: string) {
     await supabase.from('plans').update({ plan_group_id: plan.id }).eq('id', plan.id);
     plan.plan_group_id = plan.id;
     setPlans((prev) => [plan, ...prev]);
+
+    // Notificar a los demás miembros del proyecto sobre el plano nuevo
+    const memberIds = await getOtherProjectMemberIds(projectId, user.id);
+    if (memberIds.length > 0) {
+      const title = '🗺️ Nuevo plano';
+      const body = `${plan.title} (${plan.code})`;
+      await notifyUsers(memberIds, title, body, { resource_type: 'plan', resource_id: projectId });
+      for (const uid of memberIds) {
+        await saveNotification({
+          userId: uid, type: 'plan_uploaded', title, description: body,
+          resourceType: 'plan', resourceId: projectId, createdBy: user.id,
+        });
+      }
+    }
+
     return plan;
   };
 
@@ -168,6 +195,20 @@ export function usePlans(projectId: string) {
     // Reemplazar en la lista local: el plano anterior sale de "vigentes",
     // el nuevo entra en su lugar.
     setPlans((prev) => prev.map((p) => (p.id === previousPlan.id ? newPlan : p)));
+
+    const memberIds = await getOtherProjectMemberIds(projectId, user.id);
+    if (memberIds.length > 0) {
+      const title = '🔄 Nueva revisión de plano';
+      const body = `${newPlan.title} → Rev. ${newRevisionCode}`;
+      await notifyUsers(memberIds, title, body, { resource_type: 'plan', resource_id: projectId });
+      for (const uid of memberIds) {
+        await saveNotification({
+          userId: uid, type: 'plan_revision', title, description: body,
+          resourceType: 'plan', resourceId: projectId, createdBy: user.id,
+        });
+      }
+    }
+
     return newPlan;
   };
 

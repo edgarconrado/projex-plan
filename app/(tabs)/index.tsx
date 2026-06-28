@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/lib/AuthContext';
 import { useProjects } from '../../src/hooks/useProjects';
 import { useTasks } from '../../src/hooks/useTasks';
+import { useNotifications } from '../../src/hooks/useNotifications';
 import { useProjectStore } from '../../src/stores';
 import { Spacing, Radius, getStatusColor, getStatusLabel, getPriorityColor } from '../../src/lib/theme';
 import { useTheme } from '../../src/lib/ThemeContext';
@@ -39,6 +40,7 @@ function SectionCard({ children, colors }: { children: React.ReactNode; colors: 
 export default function DashboardScreen() {
   const { colors, typography } = useTheme();
   const { profile } = useAuth();
+  const { unreadCount: unreadNotifCount } = useNotifications();
   const { projects, fetchProjects } = useProjects();
   const { tasks, fetchTasks } = useTasks();
   const { activeProjectId, setActiveProjectId } = useProjectStore();
@@ -112,7 +114,26 @@ export default function DashboardScreen() {
               <Text style={typography.h2}>{profile?.full_name?.split(' ')[0] ?? 'Usuario'} 👋</Text>
             </View>
           </View>
-          {profile && <Avatar name={profile.full_name} imageUrl={profile.avatar_url} size={44} />}
+          {profile && (
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/notifications' as never)}
+              style={{ position: 'relative' }}
+            >
+              <Avatar name={profile.full_name} imageUrl={profile.avatar_url} size={44} />
+              {unreadNotifCount > 0 && (
+                <View style={{
+                  position: 'absolute', top: -4, right: -4,
+                  backgroundColor: colors.danger, borderRadius: Radius.full,
+                  minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center',
+                  paddingHorizontal: 3, borderWidth: 2, borderColor: colors.background,
+                }}>
+                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
+                    {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Proyecto activo */}

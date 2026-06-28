@@ -207,6 +207,8 @@ export interface Notification {
   type: string;
   title: string;
   description?: string | null;
+  resource_type?: string | null;
+  resource_id?: string | null;
   is_read: boolean;
   created_at: string;
 }

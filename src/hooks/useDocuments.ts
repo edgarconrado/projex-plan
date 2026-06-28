@@ -2,6 +2,17 @@ import { useState, useCallback } from 'react';
 import { supabase, uploadFile, generateFileName, STORAGE_BUCKETS } from '../lib/supabase';
 import { Document } from '../types';
 import { useAuth } from '../lib/AuthContext';
+import { notifyUsers, saveNotification } from '../lib/notifications';
+
+async function getOtherProjectMemberIds(projectId: string, excludeUserId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from('project_members')
+    .select('user_id')
+    .eq('project_id', projectId);
+  return (data ?? [])
+    .map((m: any) => m.user_id)
+    .filter((id: string) => id !== excludeUserId);
+}
 
 export function useDocuments(projectId: string) {
   const { user } = useAuth();
@@ -62,6 +73,20 @@ export function useDocuments(projectId: string) {
     setUploadProgress(100);
     const doc = data as Document;
     setDocuments((prev) => [doc, ...prev]);
+
+    const memberIds = await getOtherProjectMemberIds(projectId, user.id);
+    if (memberIds.length > 0) {
+      const title = '📄 Nuevo documento';
+      const body = fileName;
+      await notifyUsers(memberIds, title, body, { resource_type: 'document', resource_id: projectId });
+      for (const uid of memberIds) {
+        await saveNotification({
+          userId: uid, type: 'document_uploaded', title, description: body,
+          resourceType: 'document', resourceId: projectId, createdBy: user.id,
+        });
+      }
+    }
+
     return doc;
   };
 

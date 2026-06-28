@@ -1,15 +1,40 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Task, CreateTaskDTO, UpdateTaskDTO } from '../types';
 import { useTaskStore } from '../stores';
 import { useAuth } from '../lib/AuthContext';
 import { notifyUsers, saveNotification } from '../lib/notifications';
 
+let taskChannelInstanceCounter = 0;
+
+// Trae la fila completa de una tarea (con sus relaciones) a partir de su ID.
+// Usado cuando Realtime nos avisa de un INSERT/UPDATE — el payload de
+// postgres_changes solo trae las columnas planas, no los joins.
+async function fetchFullTask(taskId: string): Promise<Task | null> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select(`
+      *,
+      assignee:profiles!tasks_assigned_to_fkey(id, full_name, avatar_url, role),
+      creator:profiles!tasks_created_by_fkey(id, full_name, avatar_url),
+      checklist:task_checklist(*),
+      project:projects(id, name)
+    `)
+    .eq('id', taskId)
+    .single();
+  if (error) return null;
+  return data as Task;
+}
+
 export function useTasks(projectId?: string) {
   const { user } = useAuth();
-  const { tasksByProject, setTasks, upsertTask, removeTask } = useTaskStore();
+  const { tasksByProject, setTasks, upsertTask, removeTask, removeTaskById } = useTaskStore();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const instanceIdRef = useRef<number | null>(null);
+  if (instanceIdRef.current === null) {
+    instanceIdRef.current = taskChannelInstanceCounter++;
+  }
 
   const tasks = projectId ? (tasksByProject[projectId] ?? []) : Object.values(tasksByProject).flat();
 
@@ -57,6 +82,55 @@ export function useTasks(projectId?: string) {
       setIsLoading(false);
     }
   }, [user, projectId, setTasks]);
+
+  // Suscripción en tiempo real a la tabla tasks. Si hay projectId, escucha
+  // los cambios de ese proyecto; si no, escucha las tareas asignadas al
+  // usuario actual (igual que el modo de fetchTasks sin proyecto).
+  useEffect(() => {
+    if (!user) return;
+
+    const filter = projectId ? `project_id=eq.${projectId}` : `assigned_to=eq.${user.id}`;
+    const channelName = `tasks:${projectId ?? `mine-${user.id}`}:${instanceIdRef.current}`;
+
+    const upsertAffectedProject = (task: Task) => {
+      // En el modo "todas mis tareas" no hay un projectId fijo — usamos el
+      // de la propia tarea recibida, ya que upsertTask la agrupa por su
+      // project_id internamente.
+      upsertTask(task);
+    };
+
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'tasks', filter },
+        async (payload) => {
+          const full = await fetchFullTask((payload.new as Task).id);
+          if (full) upsertAffectedProject(full);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'tasks', filter },
+        async (payload) => {
+          const full = await fetchFullTask((payload.new as Task).id);
+          if (full) upsertAffectedProject(full);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'tasks', filter },
+        (payload) => {
+          const oldRow = payload.old as Partial<Task>;
+          if (oldRow.id) removeTaskById(oldRow.id);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, projectId, upsertTask, removeTaskById]);
 
   const createTask = async (dto: CreateTaskDTO): Promise<Task> => {
     if (!user) throw new Error('No hay sesión activa');
