@@ -39,8 +39,10 @@ export function useNotifications() {
     }
   }, [user]);
 
-  // Suscripción en tiempo real: cualquier notificación nueva insertada para
-  // este usuario aparece al instante sin necesidad de refrescar manualmente.
+  // Suscripción en tiempo real: cualquier notificación nueva insertada, o
+  // marcada como leída/eliminada desde OTRA instancia de este hook (por
+  // ejemplo, el Dashboard y la pantalla de Notificaciones al mismo tiempo),
+  // se refleja aquí también — así el badge y la lista siempre coinciden.
   useEffect(() => {
     if (!user) return;
     fetchNotifications();
@@ -53,6 +55,22 @@ export function useNotifications() {
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
         (payload) => {
           setNotifications((prev) => [payload.new as Notification, ...prev]);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const updated = payload.new as Notification;
+          setNotifications((prev) => prev.map((n) => (n.id === updated.id ? updated : n)));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const oldRow = payload.old as Partial<Notification>;
+          if (oldRow.id) setNotifications((prev) => prev.filter((n) => n.id !== oldRow.id));
         }
       )
       .subscribe();

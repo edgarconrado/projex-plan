@@ -89,10 +89,16 @@ export default function TaskDetailScreen() {
     if (!task) return;
     setSaving(true);
     try {
+      console.log('[TaskDetail] Actualizando con:', JSON.stringify(updates));
       await updateTask(task.id, updates as any);
       await fetchTask();
     } catch (e: unknown) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo actualizar');
+      console.log('[TaskDetail] ERROR completo:', JSON.stringify(e, Object.getOwnPropertyNames(e instanceof Error ? e : (e as object) ?? {})));
+      const message =
+        e instanceof Error
+          ? e.message
+          : (e as any)?.message || (e as any)?.error_description || (e as any)?.details || 'No se pudo actualizar';
+      Alert.alert('Error', message);
     } finally {
       setSaving(false);
     }
