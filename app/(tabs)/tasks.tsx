@@ -75,8 +75,9 @@ export default function TasksScreen() {
   };
 
   const handleCreateTask = async (dto: any) => {
-    await createTask(dto);
+    const task = await createTask(dto);
     await fetchTasks();
+    return task;
   };
 
   if (!activeProjectId) {

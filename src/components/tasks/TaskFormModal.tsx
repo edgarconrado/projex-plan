@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, Modal, ScrollView,
-  TouchableOpacity, KeyboardAvoidingView, Platform,
+  TouchableOpacity, KeyboardAvoidingView, Platform, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,8 @@ import { Task, TaskPriority, TaskStatus, CreateTaskDTO, Profile } from '../../ty
 import { Colors, Typography, Spacing, Radius } from '../../lib/theme';
 import { Button, Input } from '../ui';
 import { supabase } from '../../lib/supabase';
+import { useChecklistTemplates } from '../../hooks/useChecklist';
+import { useProjectStore } from '../../stores';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 interface TaskFormModalProps {
@@ -35,12 +37,39 @@ const STATUSES: { value: TaskStatus; label: string }[] = [
 
 export function TaskFormModal({ visible, onClose, onSubmit, projectId, initialData }: TaskFormModalProps) {
   const isEditing = !!initialData;
+
+  // Resetear todos los campos cuando se abre el modal para CREAR (no editar)
+  useEffect(() => {
+    if (visible && !isEditing) {
+      setTitle('');
+      setDescription('');
+      setPriority('medium');
+      setStatus('pending');
+      setDueDate('');
+      setFloor('');
+      setZone('');
+      setAssignedTo('');
+      setChecklistItems([]);
+      setNewCheckItem('');
+      setShowTemplateList(false);
+      setShowSaveTemplateInForm(false);
+      setTemplateNameInForm('');
+      setError('');
+    }
+  }, [visible]);
   const [title, setTitle] = useState(initialData?.title ?? '');
   const [description, setDescription] = useState(initialData?.description ?? '');
   const [priority, setPriority] = useState<TaskPriority>(initialData?.priority ?? 'medium');
   const [status, setStatus] = useState<TaskStatus>(initialData?.status ?? 'pending');
   const [dueDate, setDueDate] = useState(initialData?.due_date ?? '');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const { activeProjectId } = useProjectStore();
+  const { templates, saveTemplate } = useChecklistTemplates(activeProjectId ?? undefined);
+  const [checklistItems, setChecklistItems] = useState<string[]>([]);
+  const [newCheckItem, setNewCheckItem] = useState('');
+  const [showTemplateList, setShowTemplateList] = useState(false);
+  const [showSaveTemplateInForm, setShowSaveTemplateInForm] = useState(false);
+  const [templateNameInForm, setTemplateNameInForm] = useState('');
   const [floor, setFloor] = useState(initialData?.floor ?? '');
   const [zone, setZone] = useState(initialData?.zone ?? '');
   const [assignedTo, setAssignedTo] = useState(initialData?.assigned_to ?? '');
@@ -70,7 +99,7 @@ export function TaskFormModal({ visible, onClose, onSubmit, projectId, initialDa
         priority, status,
         assigned_to: assignedTo || null,
       });
-      await onSubmit({
+      const createdTask = await onSubmit({
         project_id: projectId,
         title: title.trim(),
         description: description.trim() || null,
@@ -83,6 +112,21 @@ export function TaskFormModal({ visible, onClose, onSubmit, projectId, initialDa
         estimated_hours: null,
       });
       console.log('[TaskForm] Éxito');
+
+      // Si se definieron items de checklist antes de crear la tarea, los guardamos ahora
+      console.log('[TaskForm] checklistItems al guardar:', checklistItems);
+      if (createdTask?.id && checklistItems.length > 0) {
+        const { error: clError } = await supabase.from('task_checklist').insert(
+          checklistItems.map((text, idx) => ({
+            task_id: createdTask.id,
+            item: text,
+            is_completed: false,
+            order_index: idx,
+          }))
+        );
+        console.log('[TaskForm] checklist insert error:', JSON.stringify(clError));
+      }
+
       onClose();
     } catch (e: unknown) {
       console.log('[TaskForm] ERROR COMPLETO:', JSON.stringify(e, null, 2));
@@ -236,10 +280,144 @@ export function TaskFormModal({ visible, onClose, onSubmit, projectId, initialDa
             </View>
           </View>
 
+          {/* Checklist — solo en creación, no en edición (edición tiene su propio ChecklistSection) */}
+          {!isEditing && (
+            <View style={{ backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: Colors.border, padding: Spacing.md, gap: Spacing.sm }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                  <Ionicons name="checkbox-outline" size={16} color={Colors.primary} />
+                  <Text style={[Typography.bodySmall, { fontWeight: '700' }]}>
+                    Checklist {checklistItems.length > 0 ? `(${checklistItems.length})` : '(opcional)'}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                  {checklistItems.length > 0 && (
+                    <TouchableOpacity
+                      onPress={() => setShowSaveTemplateInForm(true)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.md, borderWidth: 0.5, borderColor: Colors.primary, backgroundColor: Colors.primaryMuted }}
+                    >
+                      <Ionicons name="bookmark" size={12} color={Colors.primary} />
+                      <Text style={{ fontSize: 11, color: Colors.primary, fontWeight: '600' }}>Guardar plantilla</Text>
+                    </TouchableOpacity>
+                  )}
+                  {templates.length > 0 && (
+                    <TouchableOpacity
+                      onPress={() => setShowTemplateList(!showTemplateList)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.md, borderWidth: 0.5, borderColor: Colors.primary }}
+                    >
+                      <Ionicons name="copy-outline" size={12} color={Colors.primary} />
+                      <Text style={{ fontSize: 11, color: Colors.primary, fontWeight: '600' }}>Plantillas ({templates.length})</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
+              {/* Lista de plantillas disponibles */}
+              {showTemplateList && (
+                <View style={{ gap: Spacing.xs }}>
+                  {templates.map((t) => (
+                    <TouchableOpacity
+                      key={t.id}
+                      onPress={() => {
+                        setChecklistItems((t.items as { text: string }[]).map(i => i.text));
+                        setShowTemplateList(false);
+                      }}
+                      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.surface, borderRadius: Radius.md, borderWidth: 0.5, borderColor: Colors.border, padding: Spacing.sm }}
+                    >
+                      <View>
+                        <Text style={{ fontSize: 13, fontWeight: '600', color: Colors.textPrimary }}>{t.name}</Text>
+                        <Text style={{ fontSize: 11, color: Colors.textMuted }}>{t.items.length} elementos</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {/* Items del checklist */}
+              {checklistItems.map((item, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                  <Ionicons name="square-outline" size={18} color={Colors.textMuted} />
+                  <Text style={{ flex: 1, fontSize: 13, color: Colors.textPrimary }}>{item}</Text>
+                  <TouchableOpacity onPress={() => setChecklistItems((prev) => prev.filter((_, i) => i !== idx))}>
+                    <Ionicons name="close" size={16} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              {/* Input nuevo item */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                <Ionicons name="add-circle-outline" size={18} color={Colors.primary} />
+                <TextInput
+                  value={newCheckItem}
+                  onChangeText={setNewCheckItem}
+                  placeholder="Agregar elemento..."
+                  placeholderTextColor={Colors.textMuted}
+                  returnKeyType="done"
+                  onSubmitEditing={() => {
+                    if (newCheckItem.trim()) {
+                      setChecklistItems((prev) => [...prev, newCheckItem.trim()]);
+                      setNewCheckItem('');
+                    }
+                  }}
+                  style={{ flex: 1, fontSize: 13, color: Colors.textPrimary, paddingVertical: 4, borderBottomWidth: 0.5, borderBottomColor: Colors.border }}
+                />
+                {newCheckItem.trim().length > 0 && (
+                  <TouchableOpacity onPress={() => {
+                    setChecklistItems((prev) => [...prev, newCheckItem.trim()]);
+                    setNewCheckItem('');
+                  }}>
+                    <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          )}
+
           <Button label={isEditing ? 'Guardar cambios' : 'Crear tarea'} onPress={handleSubmit} loading={loading} size="lg" style={{ marginTop: Spacing.sm }} />
         </ScrollView>
       </KeyboardAvoidingView>
       </SafeAreaView>
+
+      {/* Modal guardar plantilla desde formulario de creación */}
+      <Modal visible={showSaveTemplateInForm} transparent animationType="fade" onRequestClose={() => setShowSaveTemplateInForm(false)}>
+        <View style={{ flex: 1, backgroundColor: Colors.overlay, justifyContent: 'center', padding: Spacing.xl }}>
+          <View style={{ backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.lg, gap: Spacing.md }}>
+            <Text style={Typography.h4}>Guardar como plantilla</Text>
+            <Text style={[Typography.caption, { color: Colors.textMuted }]}>
+              Se guardarán {checklistItems.length} elemento{checklistItems.length !== 1 ? 's' : ''}.
+            </Text>
+            <TextInput
+              value={templateNameInForm}
+              onChangeText={setTemplateNameInForm}
+              placeholder="Nombre de la plantilla..."
+              placeholderTextColor={Colors.textMuted}
+              autoFocus
+              style={{ backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 0.5, borderColor: Colors.border, padding: Spacing.md, color: Colors.textPrimary, fontSize: 14 }}
+            />
+            <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+              <TouchableOpacity
+                onPress={() => { setShowSaveTemplateInForm(false); setTemplateNameInForm(''); }}
+                style={{ flex: 1, padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' }}
+              >
+                <Text style={{ color: Colors.textSecondary, fontWeight: '500' }}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={async () => {
+                  if (!templateNameInForm.trim()) return;
+                  await saveTemplate(templateNameInForm, checklistItems.map(text => ({ text })));
+                  setShowSaveTemplateInForm(false);
+                  setTemplateNameInForm('');
+                }}
+                disabled={!templateNameInForm.trim()}
+                style={{ flex: 1, padding: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.primary, alignItems: 'center', opacity: templateNameInForm.trim() ? 1 : 0.5 }}
+              >
+                <Text style={{ color: Colors.textInverse, fontWeight: '700' }}>Guardar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 }

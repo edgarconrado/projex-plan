@@ -10,6 +10,7 @@ import { supabase } from '../../src/lib/supabase';
 import { useTasks } from '../../src/hooks/useTasks';
 import { Colors, Typography, Spacing, Radius, getPriorityColor, getPriorityLabel, getStatusLabel } from '../../src/lib/theme';
 import { Avatar, Badge, LoadingOverlay } from '../../src/components/ui';
+import { ChecklistSection } from '../../src/components/tasks/ChecklistSection';
 import { Task, TaskPriority, TaskStatus, Profile, TaskChecklistItem } from '../../src/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -237,6 +238,13 @@ export default function TaskDetailScreen() {
             )}
           </View>
 
+          {/* Checklist — permite agregar/completar items y usar plantillas */}
+          {task && (
+            <View style={{ backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: Colors.border, padding: Spacing.lg }}>
+              <ChecklistSection taskId={task.id} />
+            </View>
+          )}
+
           <View>
             <Text style={[Typography.label, { color: Colors.textSecondary, marginBottom: 8 }]}>Estado</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -314,76 +322,6 @@ export default function TaskDetailScreen() {
                 ))}
               </View>
             </ScrollView>
-          </View>
-
-          <View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Text style={[Typography.label, { color: Colors.textSecondary }]}>Checklist</Text>
-              {totalCount > 0 && (
-                <Text style={[Typography.caption, { color: completedCount === totalCount ? Colors.success : Colors.textMuted }]}>
-                  {completedCount}/{totalCount}
-                </Text>
-              )}
-            </View>
-
-            <View style={{ gap: 6 }}>
-              {(task.checklist ?? [])
-                .sort((a, b) => a.order_index - b.order_index)
-                .map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    onPress={() => handleToggleChecklistItem(item)}
-                    style={{
-                      flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-                      backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md,
-                      borderWidth: 0.5, borderColor: Colors.border, padding: Spacing.sm,
-                    }}
-                  >
-                    <View style={{
-                      width: 20, height: 20, borderRadius: 5,
-                      borderWidth: item.is_completed ? 0 : 1.5,
-                      borderColor: Colors.border,
-                      backgroundColor: item.is_completed ? Colors.success : 'transparent',
-                      alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      {item.is_completed && <Ionicons name="checkmark" size={13} color="#fff" />}
-                    </View>
-                    <Text style={[
-                      Typography.bodySmall,
-                      { flex: 1, color: Colors.textPrimary },
-                      item.is_completed && { textDecorationLine: 'line-through', color: Colors.textMuted },
-                    ]}>
-                      {item.item}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-            </View>
-
-            <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>
-              <TextInput
-                value={newChecklistItem}
-                onChangeText={setNewChecklistItem}
-                placeholder="Agregar punto..."
-                placeholderTextColor={Colors.textMuted}
-                onSubmitEditing={handleAddChecklistItem}
-                style={{
-                  flex: 1, backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md,
-                  borderWidth: 0.5, borderColor: Colors.border, paddingHorizontal: Spacing.md,
-                  paddingVertical: 10, color: Colors.textPrimary, fontSize: 13,
-                }}
-              />
-              <TouchableOpacity
-                onPress={handleAddChecklistItem}
-                disabled={!newChecklistItem.trim()}
-                style={{
-                  width: 38, height: 38, borderRadius: Radius.md,
-                  backgroundColor: newChecklistItem.trim() ? Colors.primary : Colors.surfaceSecondary,
-                  alignItems: 'center', justifyContent: 'center',
-                }}
-              >
-                <Ionicons name="add" size={20} color={newChecklistItem.trim() ? Colors.textInverse : Colors.textMuted} />
-              </TouchableOpacity>
-            </View>
           </View>
 
           <View>
