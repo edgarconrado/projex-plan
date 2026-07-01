@@ -5,6 +5,8 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useProjects } from '../../src/hooks/useProjects';
 import { useProjectStore } from '../../src/stores';
+import { useTasks } from '../../src/hooks/useTasks';
+import { useReport } from '../../src/hooks/useReport';
 import { ProjectCard } from '../../src/components/tasks/ProjectCard';
 import { ProjectFormModal } from '../../src/components/tasks/ProjectFormModal';
 import { Spacing, Radius } from '../../src/lib/theme';
@@ -26,6 +28,8 @@ export default function ProjectsScreen() {
   const { colors, typography } = useTheme();
   const { projects, isLoading, fetchProjects, createProject, updateProject, deleteProject } = useProjects();
   const { activeProjectId, setActiveProjectId } = useProjectStore();
+  const { tasks } = useTasks();
+  const { generateReport, isGenerating } = useReport();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'all'>('all');
   const [modalVisible, setModalVisible] = useState(false);
@@ -167,6 +171,14 @@ export default function ProjectsScreen() {
                   >
                     <Ionicons name="pencil-outline" size={13} color={colors.textMuted} />
                     <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>Editar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => generateReport(item, tasks)}
+                    disabled={isGenerating}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.surfaceSecondary, borderWidth: 0.5, borderColor: colors.border, opacity: isGenerating ? 0.6 : 1 }}
+                  >
+                    <Ionicons name="document-text-outline" size={13} color={colors.textMuted} />
+                    <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>PDF</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => handleDelete(item)}

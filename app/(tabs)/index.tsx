@@ -7,6 +7,7 @@ import { useAuth } from '../../src/lib/AuthContext';
 import { useProjects } from '../../src/hooks/useProjects';
 import { useTasks } from '../../src/hooks/useTasks';
 import { useNotifications } from '../../src/hooks/useNotifications';
+import { useReport } from '../../src/hooks/useReport';
 import { useProjectStore } from '../../src/stores';
 import { Spacing, Radius, getStatusColor, getStatusLabel, getPriorityColor } from '../../src/lib/theme';
 import { useTheme } from '../../src/lib/ThemeContext';
@@ -41,6 +42,7 @@ export default function DashboardScreen() {
   const { colors, typography } = useTheme();
   const { profile } = useAuth();
   const { unreadCount: unreadNotifCount } = useNotifications();
+  const { generateReport, isGenerating } = useReport();
   const { projects, fetchProjects } = useProjects();
   const { tasks, fetchTasks } = useTasks();
   const { activeProjectId, setActiveProjectId } = useProjectStore();
@@ -138,24 +140,43 @@ export default function DashboardScreen() {
 
         {/* Proyecto activo */}
         {activeProject ? (
-          <TouchableOpacity
-            onPress={() => router.push('/(tabs)/tasks' as never)}
-            style={{
-              backgroundColor: colors.primaryMuted, borderRadius: Radius.lg,
-              borderWidth: 1, borderColor: colors.primary,
-              padding: Spacing.lg,
-              flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-            }}
-          >
-            <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="briefcase" size={20} color={colors.textInverse} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>PROYECTO ACTIVO</Text>
-              <Text style={[typography.body, { fontWeight: '600', marginTop: 1 }]} numberOfLines={1}>{activeProject.name}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.primary} />
-          </TouchableOpacity>
+          <View style={{
+            backgroundColor: colors.primaryMuted, borderRadius: Radius.lg,
+            borderWidth: 1, borderColor: colors.primary,
+            padding: Spacing.lg,
+            flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+          }}>
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/tasks' as never)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md, flex: 1 }}
+            >
+              <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="briefcase" size={20} color={colors.textInverse} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>PROYECTO ACTIVO</Text>
+                <Text style={[typography.body, { fontWeight: '600', marginTop: 1 }]} numberOfLines={1}>{activeProject.name}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => generateReport(activeProject, tasks)}
+              disabled={isGenerating}
+              style={{
+                backgroundColor: colors.primary, borderRadius: Radius.md,
+                paddingHorizontal: 10, paddingVertical: 8,
+                flexDirection: 'row', alignItems: 'center', gap: 4,
+                opacity: isGenerating ? 0.6 : 1,
+              }}
+            >
+              {isGenerating
+                ? <Ionicons name="hourglass-outline" size={14} color={colors.textInverse} />
+                : <Ionicons name="document-text-outline" size={14} color={colors.textInverse} />}
+              <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textInverse }}>
+                {isGenerating ? 'PDF...' : 'PDF'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <TouchableOpacity
             onPress={() => router.push('/(tabs)/projects' as never)}
