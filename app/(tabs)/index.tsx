@@ -8,6 +8,7 @@ import { useProjects } from '../../src/hooks/useProjects';
 import { useTasks } from '../../src/hooks/useTasks';
 import { useNotifications } from '../../src/hooks/useNotifications';
 import { useReport } from '../../src/hooks/useReport';
+import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
 import { useProjectStore } from '../../src/stores';
 import { Spacing, Radius, getStatusColor, getStatusLabel, getPriorityColor } from '../../src/lib/theme';
 import { useTheme } from '../../src/lib/ThemeContext';
@@ -41,6 +42,7 @@ function SectionCard({ children, colors }: { children: React.ReactNode; colors: 
 export default function DashboardScreen() {
   const { colors, typography } = useTheme();
   const { profile } = useAuth();
+  const { isOnline } = useNetworkStatus();
   const { unreadCount: unreadNotifCount } = useNotifications();
   const { generateReport, isGenerating } = useReport();
   const { projects, fetchProjects } = useProjects();
@@ -99,7 +101,10 @@ export default function DashboardScreen() {
   const greeting = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches';
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      edges={isOnline ? ['top', 'left', 'right'] : ['left', 'right']}
+    >
       <ScrollView
         contentContainerStyle={{ padding: Spacing.lg, paddingBottom: 100, gap: Spacing.xl }}
         showsVerticalScrollIndicator={false}

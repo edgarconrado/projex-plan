@@ -1,11 +1,12 @@
 import { ComponentProps } from 'react';
 import { Redirect, Tabs } from 'expo-router';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/lib/AuthContext';
 import { useUIStore } from '../../src/stores';
 import { Colors, Radius, Spacing, Typography } from '../../src/lib/theme';
-import { LoadingOverlay } from '../../src/components/ui';
+import { LoadingOverlay, OfflineBanner } from '../../src/components/ui';
+import { useOfflineSync } from '../../src/hooks/useOfflineSync';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -42,6 +43,11 @@ function WarmUpBanner() {
 export default function TabsLayout() {
   const { isAuthenticated, isLoading, isWarmingUp } = useAuth();
   const unreadChatCount = useUIStore((s) => s.unreadCount);
+  const { isOnline, pendingCount } = useOfflineSync({
+    onSyncComplete: (synced) => {
+      Alert.alert('Sincronizado', `${synced} cambio${synced !== 1 ? 's' : ''} sincronizado${synced !== 1 ? 's' : ''} correctamente.`);
+    },
+  });
 
   if (isLoading) return <LoadingOverlay message="Cargando..." />;
   if (!isAuthenticated) return <Redirect href="/(auth)/login" />;
@@ -49,6 +55,7 @@ export default function TabsLayout() {
   return (
     <View style={{ flex: 1 }}>
       {isWarmingUp && <WarmUpBanner />}
+      <OfflineBanner isOnline={isOnline} pendingCount={pendingCount} />
       <Tabs
         screenOptions={{
           headerShown: false,

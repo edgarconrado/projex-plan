@@ -170,3 +170,5 @@ export function ProgressBar({ value, color, height = 4, style }: {
     </View>
   );
 }
+
+export { OfflineBanner } from './OfflineBanner';

@@ -4,6 +4,8 @@ import { Task, CreateTaskDTO, UpdateTaskDTO } from '../types';
 import { useTaskStore } from '../stores';
 import { useAuth } from '../lib/AuthContext';
 import { notifyUsers, saveNotification } from '../lib/notifications';
+import { cacheTasks, getCachedTasks, queueToggle } from './useOfflineCache';
+import NetInfo from '@react-native-community/netinfo';
 
 let taskChannelInstanceCounter = 0;
 
@@ -62,13 +64,31 @@ export function useTasks(projectId?: string) {
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+
+      if (error) {
+        // Sin conexión — cargar desde caché
+        const cached = await getCachedTasks();
+        if (cached.length > 0) {
+          const filtered = targetId ? cached.filter(t => t.project_id === targetId) : cached;
+          const grouped: Record<string, Task[]> = {};
+          for (const task of filtered) {
+            if (!grouped[task.project_id]) grouped[task.project_id] = [];
+            grouped[task.project_id].push(task);
+          }
+          for (const [pid, tasks] of Object.entries(grouped)) {
+            setTasks(pid, tasks);
+          }
+        }
+        return;
+      }
+
+      const list = (data ?? []) as Task[];
 
       if (targetId) {
-        setTasks(targetId, (data ?? []) as Task[]);
+        setTasks(targetId, list);
       } else {
         const grouped: Record<string, Task[]> = {};
-        for (const task of (data ?? []) as Task[]) {
+        for (const task of list) {
           if (!grouped[task.project_id]) grouped[task.project_id] = [];
           grouped[task.project_id].push(task);
         }
@@ -76,6 +96,12 @@ export function useTasks(projectId?: string) {
           setTasks(pid, tasks);
         }
       }
+
+      // Guardar en caché para uso offline
+      const allTasks = Object.values(tasksByProject).flat();
+      const merged = [...allTasks.filter(t => !list.find(l => l.id === t.id)), ...list];
+      cacheTasks(merged);
+
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al cargar tareas');
     } finally {
@@ -188,7 +214,29 @@ export function useTasks(projectId?: string) {
 
   const toggleTaskStatus = async (task: Task): Promise<void> => {
     const newStatus = task.status === 'completed' ? 'pending' : 'completed';
-    await updateTask(task.id, { status: newStatus, completed_at: newStatus === 'completed' ? new Date().toISOString() : undefined });
+    const completedAt = newStatus === 'completed' ? new Date().toISOString() : null;
+
+    // Actualizar el store local inmediatamente (optimistic update)
+    upsertTask({ ...task, status: newStatus as any, completed_at: completedAt });
+
+    // Verificar conexión
+    const netState = await NetInfo.fetch();
+    const online = !!netState.isConnected && !!netState.isInternetReachable;
+
+    if (!online) {
+      // Sin conexión — encolar para sincronizar después
+      await queueToggle({
+        taskId: task.id,
+        projectId: task.project_id,
+        newStatus,
+        completedAt,
+        queuedAt: new Date().toISOString(),
+      });
+      return;
+    }
+
+    // Con conexión — sincronizar directamente
+    await updateTask(task.id, { status: newStatus, completed_at: completedAt ?? undefined });
   };
 
   const deleteTask = async (task: Task): Promise<void> => {

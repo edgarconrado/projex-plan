@@ -11,6 +11,7 @@ import { ProjectCard } from '../../src/components/tasks/ProjectCard';
 import { ProjectFormModal } from '../../src/components/tasks/ProjectFormModal';
 import { Spacing, Radius } from '../../src/lib/theme';
 import { useTheme } from '../../src/lib/ThemeContext';
+import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
 import { EmptyState } from '../../src/components/ui';
 import { ProjectCardSkeleton } from '../../src/components/ui/SkeletonLoader';
 import { Project, ProjectStatus } from '../../src/types';
@@ -26,6 +27,7 @@ const STATUS_FILTERS: { value: ProjectStatus | 'all'; label: string }[] = [
 
 export default function ProjectsScreen() {
   const { colors, typography } = useTheme();
+  const { isOnline } = useNetworkStatus();
   const { projects, isLoading, fetchProjects, createProject, updateProject, deleteProject } = useProjects();
   const { activeProjectId, setActiveProjectId } = useProjectStore();
   const { tasks } = useTasks();
@@ -71,7 +73,7 @@ export default function ProjectsScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={isOnline ? ['top', 'left', 'right'] : ['left', 'right']}>
       <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, paddingBottom: Spacing.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.lg }}>
           <Text style={typography.h2}>Proyectos</Text>

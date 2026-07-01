@@ -11,6 +11,7 @@ import { TaskItem } from '../../src/components/tasks/TaskItem';
 import { TaskFormModal } from '../../src/components/tasks/TaskFormModal';
 import { Spacing, Radius } from '../../src/lib/theme';
 import { useTheme } from '../../src/lib/ThemeContext';
+import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
 import { EmptyState } from '../../src/components/ui';
 import { TaskItemSkeleton } from '../../src/components/ui/SkeletonLoader';
 import { Task, TaskPriority, TaskStatus } from '../../src/types';
@@ -34,6 +35,7 @@ const PRIORITY_FILTERS: { value: TaskPriority | 'all'; label: string }[] = [
 
 export default function TasksScreen() {
   const { colors, typography } = useTheme();
+  const { isOnline } = useNetworkStatus();
   const { profile } = useAuth();
   const { activeProjectId, setActiveProjectId } = useProjectStore();
   const { tasks, isLoading, fetchTasks, createTask, toggleTaskStatus, deleteTask } = useTasks(activeProjectId ?? undefined);
@@ -82,7 +84,7 @@ export default function TasksScreen() {
 
   if (!activeProjectId) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={isOnline ? ['top', 'left', 'right'] : ['left', 'right']}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, gap: Spacing.lg }}>
           <Ionicons name="briefcase-outline" size={48} color={colors.textMuted} />
           <Text style={[typography.h4, { textAlign: 'center' }]}>Selecciona un proyecto activo</Text>
@@ -101,7 +103,7 @@ export default function TasksScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={isOnline ? ['top', 'left', 'right'] : ['left', 'right']}>
       <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, paddingBottom: Spacing.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md }}>
           <View style={{ flex: 1 }}>

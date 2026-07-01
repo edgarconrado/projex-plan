@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Project, CreateProjectDTO, UpdateProjectDTO } from '../types';
 import { useProjectStore } from '../stores';
 import { useAuth } from '../lib/AuthContext';
+import { cacheProjects, getCachedProjects } from './useOfflineCache';
 
 export function useProjects() {
   const { user } = useAuth();
@@ -25,8 +26,16 @@ export function useProjects() {
         .select('*')
         .order('updated_at', { ascending: false });
 
-      if (error) throw error;
-      setProjects((data ?? []) as Project[]);
+      if (error) {
+        // Sin conexión — cargar desde caché
+        const cached = await getCachedProjects();
+        if (cached.length > 0) setProjects(cached);
+        else throw error;
+      } else {
+        const list = (data ?? []) as Project[];
+        setProjects(list);
+        cacheProjects(list); // guardar para uso offline
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al cargar proyectos');
     } finally {

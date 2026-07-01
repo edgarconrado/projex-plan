@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/lib/AuthContext';
 import { useTheme } from '../../src/lib/ThemeContext';
+import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
 import { Spacing, Radius, getRoleLabel } from '../../src/lib/theme';
 import { Avatar, Button, Input, Divider } from '../../src/components/ui';
 import { ProfileSkeleton } from '../../src/components/ui/SkeletonLoader';
@@ -32,6 +33,7 @@ function SettingRow({ icon, label, value, onPress, rightElement, colors }: {
 export default function ProfileScreen() {
   const { profile, updateProfile, signOut, refreshProfile, isLoading } = useAuth();
   const { colors, typography, mode, setMode } = useTheme();
+  const { isOnline } = useNetworkStatus();
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [fullName, setFullName] = useState('');
   const [jobTitle, setJobTitle] = useState('');
@@ -43,7 +45,7 @@ export default function ProfileScreen() {
 
   if (isLoading || !profile) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={isOnline ? ['top', 'left', 'right'] : ['left', 'right']}>
         <ProfileSkeleton />
       </SafeAreaView>
     );
@@ -102,7 +104,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={isOnline ? ['top', 'left', 'right'] : ['left', 'right']}>
       <ScrollView contentContainerStyle={{ padding: Spacing.lg, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
         <View style={{ alignItems: 'center', paddingVertical: Spacing.xl }}>
           <TouchableOpacity onPress={handlePickAvatar} style={{ marginBottom: Spacing.lg }}>
@@ -209,7 +211,7 @@ export default function ProfileScreen() {
       </ScrollView>
 
       <Modal visible={editModalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setEditModalVisible(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={isOnline ? ['top', 'left', 'right'] : ['left', 'right']}>
         <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: colors.border }}>
             <TouchableOpacity onPress={() => setEditModalVisible(false)}><Ionicons name="close" size={24} color={colors.textSecondary} /></TouchableOpacity>

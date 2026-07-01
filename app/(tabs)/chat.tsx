@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useChat } from '../../src/hooks/useChat';
 import { Spacing, Radius } from '../../src/lib/theme';
 import { useTheme } from '../../src/lib/ThemeContext';
+import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
 import { Avatar, EmptyState, Button, Input } from '../../src/components/ui';
 import { ChatItemSkeleton } from '../../src/components/ui/SkeletonLoader';
 import { Conversation } from '../../src/types';
@@ -47,6 +48,7 @@ function ConversationItem({ conv, currentUserId, onPress, colors, typography }: 
 
 export default function ChatScreen() {
   const { colors, typography } = useTheme();
+  const { isOnline } = useNetworkStatus();
   const { user } = useAuth();
   const { conversations, isLoading, fetchConversations, createConversation } = useChat();
   const [refreshing, setRefreshing] = useState(false);
@@ -76,7 +78,7 @@ export default function ChatScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={isOnline ? ['top', 'left', 'right'] : ['left', 'right']}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, paddingBottom: Spacing.md }}>
         <Text style={typography.h2}>Mensajes</Text>
         <TouchableOpacity onPress={() => setNewModalVisible(true)}

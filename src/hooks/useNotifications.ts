@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { Notification } from '../types';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { cacheNotifications, getCachedNotifications } from './useOfflineCache';
 
 // Contador global para generar un nombre de canal único por cada instancia
 // del hook — useNotifications() se usa simultáneamente en el layout de tabs
@@ -32,8 +33,14 @@ export function useNotifications() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(100);
-      if (error) throw error;
-      setNotifications((data ?? []) as Notification[]);
+      if (error) {
+        const cached = await getCachedNotifications();
+        if (cached.length > 0) setNotifications(cached);
+      } else {
+        const list = (data ?? []) as Notification[];
+        setNotifications(list);
+        cacheNotifications(list);
+      }
     } finally {
       setIsLoading(false);
     }

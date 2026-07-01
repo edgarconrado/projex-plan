@@ -8,6 +8,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useNotifications } from '../../src/hooks/useNotifications';
 import { useTheme } from '../../src/lib/ThemeContext';
+import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
 import { Spacing, Radius } from '../../src/lib/theme';
 import { EmptyState } from '../../src/components/ui';
 import { Notification } from '../../src/types';
@@ -62,6 +63,7 @@ function navigateToResource(notification: Notification) {
 
 export default function NotificationsScreen() {
   const { colors, typography } = useTheme();
+  const { isOnline } = useNetworkStatus();
   const { notifications, isLoading, fetchNotifications, markAsRead, markAllAsRead, deleteNotification, unreadCount } = useNotifications();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -113,7 +115,7 @@ export default function NotificationsScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={isOnline ? ['top', 'left', 'right'] : ['left', 'right']}>
       <View style={{
         flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
         paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, paddingBottom: Spacing.md,
