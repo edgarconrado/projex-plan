@@ -25,6 +25,11 @@
       },
       "package": "com.jacarandalab.projexplan",
       "googleServicesFile": "./google-services.json",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCCqkdLCalzM12JPIeWVSigFspv5gkGCyU"
+        }
+      },
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",

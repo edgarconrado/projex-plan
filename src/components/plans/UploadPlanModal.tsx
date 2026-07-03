@@ -7,6 +7,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
+import { MapPlanViewer } from './MapPlanViewer';
 import { Colors, Typography, Spacing, Radius } from '../../lib/theme';
 import { Button, Input } from '../ui';
 
@@ -24,7 +25,7 @@ interface UploadPlanModalProps {
 
 const DISCIPLINES = ['Arquitectura', 'Estructura', 'Instalaciones', 'Mecánica', 'Eléctrico', 'Civil', 'Otro'];
 
-export function UploadPlanModal({ visible, onClose, onUpload, uploadProgress }: UploadPlanModalProps) {
+export function UploadPlanModal({ visible, onClose, onUpload, uploadProgress, projectId, onPlanSaved }: UploadPlanModalProps) {
   const [code, setCode] = useState('');
   const [title, setTitle] = useState('');
   const [discipline, setDiscipline] = useState('Arquitectura');
@@ -32,6 +33,7 @@ export function UploadPlanModal({ visible, onClose, onUpload, uploadProgress }: 
   const [revision, setRevision] = useState('Rev. 1');
   const [scale, setScale] = useState('1:100');
   const [selectedFile, setSelectedFile] = useState<{ uri: string; name: string; mimeType: string } | null>(null);
+  const [showMapViewer, setShowMapViewer] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -85,6 +87,7 @@ export function UploadPlanModal({ visible, onClose, onUpload, uploadProgress }: 
   };
 
   return (
+    <>
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: Colors.border }}>
@@ -111,6 +114,10 @@ export function UploadPlanModal({ visible, onClose, onUpload, uploadProgress }: 
               <TouchableOpacity onPress={pickImage} style={{ flex: 1, backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.border, borderStyle: 'dashed', padding: Spacing.md, alignItems: 'center', gap: 6 }}>
                 <Ionicons name="image-outline" size={24} color={Colors.textMuted} />
                 <Text style={[Typography.caption, { color: Colors.textMuted }]}>Imagen</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowMapViewer(true)} style={{ flex: 1, backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.primary, borderStyle: 'dashed', padding: Spacing.md, alignItems: 'center', gap: 6 }}>
+                <Ionicons name="map-outline" size={24} color={Colors.primary} />
+                <Text style={[Typography.caption, { color: Colors.primary }]}>Mapa</Text>
               </TouchableOpacity>
             </View>
             {selectedFile && (
@@ -164,5 +171,16 @@ export function UploadPlanModal({ visible, onClose, onUpload, uploadProgress }: 
         </ScrollView>
       </KeyboardAvoidingView>
     </Modal>
+      <MapPlanViewer
+        visible={showMapViewer}
+        onClose={() => setShowMapViewer(false)}
+        projectId={projectId}
+        onPlanSaved={() => {
+          setShowMapViewer(false);
+          onClose();
+          onPlanSaved?.();
+        }}
+      />
+    </>
   );
 }

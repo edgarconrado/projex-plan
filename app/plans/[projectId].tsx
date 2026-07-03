@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePlans } from '../../src/hooks/usePlans';
 import { PlanViewer } from '../../src/components/plans/PlanViewer';
 import { UploadPlanModal } from '../../src/components/plans/UploadPlanModal';
+import { MapPlanViewer } from '../../src/components/plans/MapPlanViewer';
 import { NewRevisionModal } from '../../src/components/plans/NewRevisionModal';
 import { RevisionHistoryModal } from '../../src/components/plans/RevisionHistoryModal';
 import { Colors, Typography, Spacing, Radius } from '../../src/lib/theme';
@@ -24,6 +25,7 @@ export default function PlansScreen() {
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [revisionModalVisible, setRevisionModalVisible] = useState(false);
+  const [showMapModal, setShowMapModal] = useState(false);
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [historyTargetPlan, setHistoryTargetPlan] = useState<Plan | null>(null);
 
@@ -265,6 +267,8 @@ export default function PlansScreen() {
         onClose={() => setUploadModalVisible(false)}
         onUpload={uploadPlan}
         uploadProgress={uploadProgress}
+        projectId={projectId ?? ''}
+        onPlanSaved={fetchPlans}
       />
 
       <RevisionHistoryModal
@@ -274,6 +278,13 @@ export default function PlansScreen() {
         fetchHistory={fetchRevisionHistory}
         onSelectRevision={(revision) => setSelectedPlan(revision)}
         projectId={projectId ?? ''}
+      />
+
+      <MapPlanViewer
+        visible={showMapModal}
+        onClose={() => setShowMapModal(false)}
+        projectId={projectId ?? ''}
+        onPlanSaved={() => fetchPlans()}
       />
     </SafeAreaView>
   );
