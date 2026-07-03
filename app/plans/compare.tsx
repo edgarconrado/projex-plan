@@ -6,7 +6,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Radius } from '../../src/lib/theme';
+import { Spacing, Radius } from '../../src/lib/theme';
+import { useTheme } from '../../src/lib/ThemeContext';
 import { usePlans } from '../../src/hooks/usePlans';
 import { Plan, PlanAnnotation } from '../../src/types';
 import { format } from 'date-fns';
@@ -80,6 +81,7 @@ function AnnotationsLayer({ annotations, color }: { annotations: PlanAnnotation[
 }
 
 export default function CompareRevisionsScreen() {
+  const { colors, typography } = useTheme();
   const { planAId, planBId, planGroupId, projectId } = useLocalSearchParams<{ planAId: string; planBId: string; planGroupId: string; projectId: string }>();
   const { fetchRevisionHistory } = usePlans(projectId ?? '');
   const [planA, setPlanA] = useState<Plan | null>(null);
@@ -119,39 +121,39 @@ export default function CompareRevisionsScreen() {
 
   if (loading || !planA || !planB) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={[Typography.bodySmall, { color: Colors.textMuted }]}>Cargando comparación...</Text>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={[typography.bodySmall, { color: colors.textMuted }]}>Cargando comparación...</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{
         flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-        padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: Colors.border,
+        padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: colors.border,
       }}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={Typography.h4}>Comparar revisiones</Text>
-          <Text style={[Typography.caption, { color: Colors.textMuted }]}>{planA.title}</Text>
+          <Text style={typography.h4}>Comparar revisiones</Text>
+          <Text style={[typography.caption, { color: colors.textMuted }]}>{planA.title}</Text>
         </View>
         <TouchableOpacity onPress={() => setShowAnnotations((v) => !v)} style={{ padding: 4 }}>
-          <Ionicons name={showAnnotations ? 'eye-outline' : 'eye-off-outline'} size={20} color={Colors.textSecondary} />
+          <Ionicons name={showAnnotations ? 'eye-outline' : 'eye-off-outline'} size={20} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
       {/* Etiquetas de revisión */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: Spacing.md }}>
-        <View style={{ backgroundColor: Colors.surfaceSecondary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.full, borderWidth: 0.5, borderColor: Colors.border }}>
-          <Text style={[Typography.caption, { fontWeight: '700' }]}>Rev. {planA.revision}</Text>
-          <Text style={[Typography.caption, { color: Colors.textMuted }]}>{format(new Date(planA.created_at), 'd MMM yyyy', { locale: es })}</Text>
+        <View style={{ backgroundColor: colors.surfaceSecondary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.full, borderWidth: 0.5, borderColor: colors.border }}>
+          <Text style={[typography.caption, { fontWeight: '700' }]}>Rev. {planA.revision}</Text>
+          <Text style={[typography.caption, { color: colors.textMuted }]}>{format(new Date(planA.created_at), 'd MMM yyyy', { locale: es })}</Text>
         </View>
-        <View style={{ backgroundColor: Colors.primaryMuted, paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.full, borderWidth: 0.5, borderColor: Colors.primary }}>
-          <Text style={[Typography.caption, { fontWeight: '700', color: Colors.primary }]}>Rev. {planB.revision}</Text>
-          <Text style={[Typography.caption, { color: Colors.primary }]}>{format(new Date(planB.created_at), 'd MMM yyyy', { locale: es })}</Text>
+        <View style={{ backgroundColor: colors.primaryMuted, paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.full, borderWidth: 0.5, borderColor: colors.primary }}>
+          <Text style={[typography.caption, { fontWeight: '700', color: colors.primary }]}>Rev. {planB.revision}</Text>
+          <Text style={[typography.caption, { color: colors.primary }]}>{format(new Date(planB.created_at), 'd MMM yyyy', { locale: es })}</Text>
         </View>
       </View>
 
@@ -195,14 +197,14 @@ export default function CompareRevisionsScreen() {
             backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
             shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 6,
           }}>
-            <Ionicons name="swap-horizontal" size={20} color={Colors.textPrimary} />
+            <Ionicons name="swap-horizontal" size={20} color={colors.textPrimary} />
           </View>
         </Animated.View>
       </View>
 
       {(planA.file_type === 'pdf' || planB.file_type === 'pdf') && (
-        <View style={{ padding: Spacing.md, backgroundColor: Colors.surfaceSecondary, borderTopWidth: 0.5, borderTopColor: Colors.border }}>
-          <Text style={[Typography.caption, { color: Colors.textMuted, textAlign: 'center' }]}>
+        <View style={{ padding: Spacing.md, backgroundColor: colors.surfaceSecondary, borderTopWidth: 0.5, borderTopColor: colors.border }}>
+          <Text style={[typography.caption, { color: colors.textMuted, textAlign: 'center' }]}>
             La comparación visual de PDFs no está disponible — usa el historial para abrir cada revisión por separado.
           </Text>
         </View>

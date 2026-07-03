@@ -9,7 +9,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDocuments } from '../../src/hooks/useDocuments';
 import { UploadDocumentModal } from '../../src/components/plans/UploadDocumentModal';
 import { ImageViewerModal } from '../../src/components/plans/ImageViewerModal';
-import { Colors, Typography, Spacing, Radius } from '../../src/lib/theme';
+import { Spacing, Radius } from '../../src/lib/theme';
+import { useTheme } from '../../src/lib/ThemeContext';
 import { EmptyState, LoadingOverlay, Avatar } from '../../src/components/ui';
 import { Document } from '../../src/types';
 import { format } from 'date-fns';
@@ -23,15 +24,16 @@ function formatFileSize(bytes?: number | null): string {
 }
 
 function getFileIcon(mimeType?: string | null): { name: keyof typeof Ionicons.glyphMap; color: string } {
-  if (!mimeType) return { name: 'document-outline', color: Colors.textMuted };
-  if (mimeType.startsWith('image/')) return { name: 'image-outline', color: Colors.info };
-  if (mimeType === 'application/pdf') return { name: 'document-text-outline', color: Colors.danger };
-  if (mimeType.includes('word')) return { name: 'document-outline', color: Colors.info };
-  if (mimeType.includes('sheet') || mimeType.includes('excel')) return { name: 'grid-outline', color: Colors.success };
-  return { name: 'document-outline', color: Colors.textMuted };
+  if (!mimeType) return { name: 'document-outline', color: '#6B7280' };
+  if (mimeType.startsWith('image/')) return { name: 'image-outline', color: '#3B82F6' };
+  if (mimeType === 'application/pdf') return { name: 'document-text-outline', color: '#EF4444' };
+  if (mimeType.includes('word')) return { name: 'document-outline', color: '#3B82F6' };
+  if (mimeType.includes('sheet') || mimeType.includes('excel')) return { name: 'grid-outline', color: '#22C55E' };
+  return { name: 'document-outline', color: '#6B7280' };
 }
 
 export default function DocumentsScreen() {
+  const { colors, typography } = useTheme();
   const { projectId, projectName } = useLocalSearchParams<{ projectId: string; projectName: string }>();
   const { documents, isLoading, uploadProgress, fetchDocuments, uploadDocument, deleteDocument } = useDocuments(projectId ?? '');
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
@@ -73,20 +75,20 @@ export default function DocumentsScreen() {
   if (isLoading && documents.length === 0) return <LoadingOverlay message="Cargando documentos..." />;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, paddingBottom: Spacing.md }}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={Typography.h3}>Documentos</Text>
-          {projectName && <Text style={[Typography.caption, { color: Colors.textMuted }]}>{projectName}</Text>}
+          <Text style={typography.h3}>Documentos</Text>
+          {projectName && <Text style={[typography.caption, { color: colors.textMuted }]}>{projectName}</Text>}
         </View>
         <TouchableOpacity
           onPress={() => setUploadModalVisible(true)}
-          style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' }}
+          style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Ionicons name="add" size={24} color={Colors.textInverse} />
+          <Ionicons name="add" size={24} color={colors.textInverse} />
         </TouchableOpacity>
       </View>
 
@@ -95,10 +97,10 @@ export default function DocumentsScreen() {
         keyExtractor={(d) => d.id}
         contentContainerStyle={{ padding: Spacing.lg, gap: Spacing.sm, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         ListEmptyComponent={
           <EmptyState
-            icon={<Ionicons name="folder-open-outline" size={48} color={Colors.textMuted} />}
+            icon={<Ionicons name="folder-open-outline" size={48} color={colors.textMuted} />}
             title="Sin documentos"
             subtitle="Sube contratos, fotos, reportes o cualquier archivo del proyecto"
           />
@@ -109,8 +111,8 @@ export default function DocumentsScreen() {
             <TouchableOpacity
               onPress={() => handleOpen(item)}
               style={{
-                backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.lg,
-                borderWidth: 0.5, borderColor: Colors.border, padding: Spacing.md,
+                backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg,
+                borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md,
                 flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
               }}
             >
@@ -119,35 +121,35 @@ export default function DocumentsScreen() {
               </View>
 
               <View style={{ flex: 1 }}>
-                <Text style={[Typography.body, { fontWeight: '600' }]} numberOfLines={1}>{item.file_name}</Text>
+                <Text style={[typography.body, { fontWeight: '600' }]} numberOfLines={1}>{item.file_name}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: 2, flexWrap: 'wrap' }}>
                   {item.document_type && (
-                    <View style={{ backgroundColor: Colors.primaryMuted, paddingHorizontal: 6, paddingVertical: 1, borderRadius: Radius.full }}>
-                      <Text style={{ fontSize: 10, fontWeight: '600', color: Colors.primary }}>{item.document_type}</Text>
+                    <View style={{ backgroundColor: colors.primaryMuted, paddingHorizontal: 6, paddingVertical: 1, borderRadius: Radius.full }}>
+                      <Text style={{ fontSize: 10, fontWeight: '600', color: colors.primary }}>{item.document_type}</Text>
                     </View>
                   )}
-                  <Text style={[Typography.caption, { color: Colors.textMuted }]}>
+                  <Text style={[typography.caption, { color: colors.textMuted }]}>
                     {formatFileSize(item.file_size)}
                   </Text>
-                  <Text style={[Typography.caption, { color: Colors.textMuted }]}>
+                  <Text style={[typography.caption, { color: colors.textMuted }]}>
                     {format(new Date(item.created_at), 'd MMM yyyy', { locale: es })}
                   </Text>
                 </View>
                 {item.description ? (
-                  <Text style={[Typography.caption, { color: Colors.textMuted, marginTop: 3 }]} numberOfLines={1}>
+                  <Text style={[typography.caption, { color: colors.textMuted, marginTop: 3 }]} numberOfLines={1}>
                     {item.description}
                   </Text>
                 ) : null}
                 {item.uploader && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
                     <Avatar name={item.uploader.full_name} imageUrl={item.uploader.avatar_url} size={14} />
-                    <Text style={[Typography.caption, { color: Colors.textMuted }]}>{item.uploader.full_name}</Text>
+                    <Text style={[typography.caption, { color: colors.textMuted }]}>{item.uploader.full_name}</Text>
                   </View>
                 )}
               </View>
 
               <TouchableOpacity onPress={() => handleDelete(item)} style={{ padding: Spacing.xs }}>
-                <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+                <Ionicons name="trash-outline" size={16} color={colors.danger} />
               </TouchableOpacity>
             </TouchableOpacity>
           );

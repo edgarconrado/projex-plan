@@ -9,7 +9,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../src/lib/supabase';
 import { useTasks } from '../../src/hooks/useTasks';
 import { useAuth } from '../../src/lib/AuthContext';
-import { Colors, Typography, Spacing, Radius, getPriorityColor, getPriorityLabel, getStatusLabel } from '../../src/lib/theme';
+import { Spacing, Radius, getPriorityColor, getPriorityLabel, getStatusLabel } from '../../src/lib/theme';
+import { useTheme } from '../../src/lib/ThemeContext';
 import { Avatar, Badge, LoadingOverlay } from '../../src/components/ui';
 import { ChecklistSection } from '../../src/components/tasks/ChecklistSection';
 import { Task, TaskPriority, TaskStatus, Profile, TaskChecklistItem } from '../../src/types';
@@ -17,10 +18,10 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 const PRIORITIES: { value: TaskPriority; label: string; color: string }[] = [
-  { value: 'low', label: 'Baja', color: Colors.priorityLow },
-  { value: 'medium', label: 'Media', color: Colors.priorityMedium },
-  { value: 'high', label: 'Alta', color: Colors.priorityHigh },
-  { value: 'critical', label: 'Crítica', color: Colors.priorityUrgent },
+  { value: 'low', label: 'Baja', color: '#6B7280' },
+  { value: 'medium', label: 'Media', color: '#F59E0B' },
+  { value: 'high', label: 'Alta', color: '#EF4444' },
+  { value: 'critical', label: 'Crítica', color: '#7C3AED' },
 ];
 
 const STATUSES: { value: TaskStatus; label: string }[] = [
@@ -34,6 +35,7 @@ const STATUSES: { value: TaskStatus; label: string }[] = [
 export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const { colors, typography } = useTheme();
   const { updateTask, deleteTask, toggleChecklistItem, addChecklistItem } = useTasks();
 
   const [task, setTask] = useState<Task | null>(null);
@@ -167,10 +169,10 @@ export default function TaskDetailScreen() {
   if (isLoading) return <LoadingOverlay message="Cargando tarea..." />;
   if (!task) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={Typography.h4}>Tarea no encontrada</Text>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={typography.h4}>Tarea no encontrada</Text>
         <TouchableOpacity onPress={() => router.back()} style={{ marginTop: Spacing.md }}>
-          <Text style={{ color: Colors.primary }}>Volver</Text>
+          <Text style={{ color: colors.primary }}>Volver</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -187,19 +189,19 @@ export default function TaskDetailScreen() {
      ['admin', 'project_manager', 'supervisor'].includes(userProjectRole ?? ''));
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: Colors.border,
+        padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: colors.border,
       }}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={[Typography.caption, { color: Colors.textMuted }]}>
+        <Text style={[typography.caption, { color: colors.textMuted }]}>
           {task.project?.name ?? 'Tarea'}
         </Text>
         <TouchableOpacity onPress={handleDeleteTask}>
-          <Ionicons name="trash-outline" size={20} color={Colors.danger} />
+          <Ionicons name="trash-outline" size={20} color={colors.danger} />
         </TouchableOpacity>
       </View>
 
@@ -215,25 +217,25 @@ export default function TaskDetailScreen() {
                 onSubmitEditing={handleSaveTitle}
                 autoFocus
                 style={{
-                  fontSize: 22, fontWeight: '600', color: Colors.textPrimary,
-                  borderBottomWidth: 1, borderBottomColor: Colors.primary, paddingVertical: 4,
+                  fontSize: 22, fontWeight: '600', color: colors.textPrimary,
+                  borderBottomWidth: 1, borderBottomColor: colors.primary, paddingVertical: 4,
                 }}
               />
             ) : (
               <TouchableOpacity onPress={() => setEditingTitle(true)} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm }}>
-                <Text style={[Typography.h2, { flex: 1 }]}>{task.title}</Text>
-                <Ionicons name="pencil-outline" size={16} color={Colors.textMuted} style={{ marginTop: 4 }} />
+                <Text style={[typography.h2, { flex: 1 }]}>{task.title}</Text>
+                <Ionicons name="pencil-outline" size={16} color={colors.textMuted} style={{ marginTop: 4 }} />
               </TouchableOpacity>
             )}
           </View>
 
           <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-            <Badge label={getStatusLabel(task.status)} color={Colors.primary} bgColor={Colors.primaryMuted} size="md" />
+            <Badge label={getStatusLabel(task.status)} color={colors.primary} bgColor={colors.primaryMuted} size="md" />
             <Badge label={getPriorityLabel(task.priority)} color={priorityColor} bgColor={`${priorityColor}20`} size="md" />
           </View>
 
           <View>
-            <Text style={[Typography.label, { color: Colors.textSecondary, marginBottom: 8 }]}>Descripción</Text>
+            <Text style={[typography.label, { color: colors.textSecondary, marginBottom: 8 }]}>Descripción</Text>
             {editingDescription ? (
               <TextInput
                 value={description}
@@ -242,19 +244,19 @@ export default function TaskDetailScreen() {
                 multiline
                 autoFocus
                 placeholder="Agrega una descripción..."
-                placeholderTextColor={Colors.textMuted}
+                placeholderTextColor={colors.textMuted}
                 style={{
-                  backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md,
-                  borderWidth: 1, borderColor: Colors.primary, padding: Spacing.md,
-                  color: Colors.textPrimary, fontSize: 14, minHeight: 80, textAlignVertical: 'top',
+                  backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md,
+                  borderWidth: 1, borderColor: colors.primary, padding: Spacing.md,
+                  color: colors.textPrimary, fontSize: 14, minHeight: 80, textAlignVertical: 'top',
                 }}
               />
             ) : (
               <TouchableOpacity
                 onPress={() => setEditingDescription(true)}
-                style={{ backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 0.5, borderColor: Colors.border, padding: Spacing.md, minHeight: 60 }}
+                style={{ backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md, minHeight: 60 }}
               >
-                <Text style={[Typography.body, { color: task.description ? Colors.textPrimary : Colors.textMuted }]}>
+                <Text style={[typography.body, { color: task.description ? colors.textPrimary : colors.textMuted }]}>
                   {task.description || 'Toca para agregar descripción...'}
                 </Text>
               </TouchableOpacity>
@@ -263,23 +265,23 @@ export default function TaskDetailScreen() {
 
           {/* Checklist — permite agregar/completar items y usar plantillas */}
           {task && (
-            <View style={{ backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: Colors.border, padding: Spacing.lg }}>
+            <View style={{ backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.lg }}>
               <ChecklistSection taskId={task.id} />
             </View>
           )}
 
           {/* Banner informativo para usuarios con rol viewer */}
           {!canEdit && userProjectRole !== null && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 0.5, borderColor: Colors.border, padding: Spacing.md }}>
-              <Ionicons name="eye-outline" size={16} color={Colors.textMuted} />
-              <Text style={[Typography.caption, { color: Colors.textMuted, flex: 1 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md }}>
+              <Ionicons name="eye-outline" size={16} color={colors.textMuted} />
+              <Text style={[typography.caption, { color: colors.textMuted, flex: 1 }]}>
                 Solo tienes permisos de lectura en este proyecto
               </Text>
             </View>
           )}
 
           <View>
-            <Text style={[Typography.label, { color: Colors.textSecondary, marginBottom: 8 }]}>Estado</Text>
+            <Text style={[typography.label, { color: colors.textSecondary, marginBottom: 8 }]}>Estado</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {STATUSES.map((s) => (
                 <TouchableOpacity
@@ -287,11 +289,11 @@ export default function TaskDetailScreen() {
                   onPress={() => canEdit && handleUpdate({ status: s.value, completed_at: s.value === 'completed' ? new Date().toISOString() : null })}
                   style={{
                     paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.full, borderWidth: 1,
-                    borderColor: task.status === s.value ? Colors.primary : Colors.border,
-                    backgroundColor: task.status === s.value ? Colors.primaryMuted : 'transparent',
+                    borderColor: task.status === s.value ? colors.primary : colors.border,
+                    backgroundColor: task.status === s.value ? colors.primaryMuted : 'transparent',
                   }}
                 >
-                  <Text style={{ fontSize: 13, fontWeight: '500', color: task.status === s.value ? Colors.primary : Colors.textSecondary }}>
+                  <Text style={{ fontSize: 13, fontWeight: '500', color: task.status === s.value ? colors.primary : colors.textSecondary }}>
                     {s.label}
                   </Text>
                 </TouchableOpacity>
@@ -300,7 +302,7 @@ export default function TaskDetailScreen() {
           </View>
 
           <View>
-            <Text style={[Typography.label, { color: Colors.textSecondary, marginBottom: 8 }]}>Prioridad</Text>
+            <Text style={[typography.label, { color: colors.textSecondary, marginBottom: 8 }]}>Prioridad</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {PRIORITIES.map((p) => (
                 <TouchableOpacity
@@ -308,11 +310,11 @@ export default function TaskDetailScreen() {
                   onPress={() => canEdit && handleUpdate({ priority: p.value })}
                   style={{
                     flex: 1, paddingVertical: 10, borderRadius: Radius.md, borderWidth: 1, alignItems: 'center',
-                    borderColor: task.priority === p.value ? p.color : Colors.border,
+                    borderColor: task.priority === p.value ? p.color : colors.border,
                     backgroundColor: task.priority === p.value ? `${p.color}20` : 'transparent',
                   }}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: task.priority === p.value ? p.color : Colors.textMuted }}>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: task.priority === p.value ? p.color : colors.textMuted }}>
                     {p.label}
                   </Text>
                 </TouchableOpacity>
@@ -321,18 +323,18 @@ export default function TaskDetailScreen() {
           </View>
 
           <View>
-            <Text style={[Typography.label, { color: Colors.textSecondary, marginBottom: 8 }]}>Asignado a</Text>
+            <Text style={[typography.label, { color: colors.textSecondary, marginBottom: 8 }]}>Asignado a</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <TouchableOpacity
                   onPress={() => canEdit && handleUpdate({ assigned_to: null })}
                   style={{
                     paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.full, borderWidth: 1,
-                    borderColor: !task.assigned_to ? Colors.primary : Colors.border,
-                    backgroundColor: !task.assigned_to ? Colors.primaryMuted : 'transparent',
+                    borderColor: !task.assigned_to ? colors.primary : colors.border,
+                    backgroundColor: !task.assigned_to ? colors.primaryMuted : 'transparent',
                   }}
                 >
-                  <Text style={{ fontSize: 13, fontWeight: '500', color: !task.assigned_to ? Colors.primary : Colors.textSecondary }}>
+                  <Text style={{ fontSize: 13, fontWeight: '500', color: !task.assigned_to ? colors.primary : colors.textSecondary }}>
                     Sin asignar
                   </Text>
                 </TouchableOpacity>
@@ -343,12 +345,12 @@ export default function TaskDetailScreen() {
                     style={{
                       flexDirection: 'row', alignItems: 'center', gap: 6,
                       paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.full, borderWidth: 1,
-                      borderColor: task.assigned_to === m.id ? Colors.primary : Colors.border,
-                      backgroundColor: task.assigned_to === m.id ? Colors.primaryMuted : 'transparent',
+                      borderColor: task.assigned_to === m.id ? colors.primary : colors.border,
+                      backgroundColor: task.assigned_to === m.id ? colors.primaryMuted : 'transparent',
                     }}
                   >
                     <Avatar name={m.full_name} imageUrl={m.avatar_url} size={20} />
-                    <Text style={{ fontSize: 13, fontWeight: '500', color: task.assigned_to === m.id ? Colors.primary : Colors.textSecondary }}>
+                    <Text style={{ fontSize: 13, fontWeight: '500', color: task.assigned_to === m.id ? colors.primary : colors.textSecondary }}>
                       {m.full_name.split(' ')[0]}
                     </Text>
                   </TouchableOpacity>
@@ -358,54 +360,54 @@ export default function TaskDetailScreen() {
           </View>
 
           <View>
-            <Text style={[Typography.label, { color: Colors.textSecondary, marginBottom: 8 }]}>Fecha límite</Text>
+            <Text style={[typography.label, { color: colors.textSecondary, marginBottom: 8 }]}>Fecha límite</Text>
             <TextInput
               value={dueDate}
               onChangeText={setDueDate}
               onBlur={() => handleUpdate({ due_date: dueDate.trim() || null })}
               placeholder="YYYY-MM-DD"
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               style={{
-                backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md,
-                borderWidth: 0.5, borderColor: Colors.border, paddingHorizontal: Spacing.md,
-                paddingVertical: 12, color: Colors.textPrimary, fontSize: 14,
+                backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md,
+                borderWidth: 0.5, borderColor: colors.border, paddingHorizontal: Spacing.md,
+                paddingVertical: 12, color: colors.textPrimary, fontSize: 14,
               }}
             />
           </View>
 
           <View style={{ flexDirection: 'row', gap: Spacing.md }}>
             <View style={{ flex: 1 }}>
-              <Text style={[Typography.label, { color: Colors.textSecondary, marginBottom: 8 }]}>Piso</Text>
+              <Text style={[typography.label, { color: colors.textSecondary, marginBottom: 8 }]}>Piso</Text>
               <TextInput
                 value={floor}
                 onChangeText={setFloor}
                 onBlur={() => handleUpdate({ floor: floor.trim() || null })}
                 placeholder="Planta baja"
-                placeholderTextColor={Colors.textMuted}
-                style={{ backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 0.5, borderColor: Colors.border, paddingHorizontal: Spacing.md, paddingVertical: 12, color: Colors.textPrimary, fontSize: 14 }}
+                placeholderTextColor={colors.textMuted}
+                style={{ backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 0.5, borderColor: colors.border, paddingHorizontal: Spacing.md, paddingVertical: 12, color: colors.textPrimary, fontSize: 14 }}
               />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[Typography.label, { color: Colors.textSecondary, marginBottom: 8 }]}>Zona</Text>
+              <Text style={[typography.label, { color: colors.textSecondary, marginBottom: 8 }]}>Zona</Text>
               <TextInput
                 value={zone}
                 onChangeText={setZone}
                 onBlur={() => handleUpdate({ zone: zone.trim() || null })}
                 placeholder="Sector A"
-                placeholderTextColor={Colors.textMuted}
-                style={{ backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 0.5, borderColor: Colors.border, paddingHorizontal: Spacing.md, paddingVertical: 12, color: Colors.textPrimary, fontSize: 14 }}
+                placeholderTextColor={colors.textMuted}
+                style={{ backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 0.5, borderColor: colors.border, paddingHorizontal: Spacing.md, paddingVertical: 12, color: colors.textPrimary, fontSize: 14 }}
               />
             </View>
           </View>
 
-          <View style={{ gap: 6, paddingTop: Spacing.sm, borderTopWidth: 0.5, borderTopColor: Colors.border }}>
+          <View style={{ gap: 6, paddingTop: Spacing.sm, borderTopWidth: 0.5, borderTopColor: colors.border }}>
             {task.creator && (
-              <Text style={[Typography.caption, { color: Colors.textMuted }]}>
+              <Text style={[typography.caption, { color: colors.textMuted }]}>
                 Creada por {task.creator.full_name} · {format(new Date(task.created_at), "d MMM yyyy, HH:mm", { locale: es })}
               </Text>
             )}
             {task.completed_at && (
-              <Text style={[Typography.caption, { color: Colors.success }]}>
+              <Text style={[typography.caption, { color: colors.success }]}>
                 Completada el {format(new Date(task.completed_at), "d MMM yyyy, HH:mm", { locale: es })}
               </Text>
             )}
@@ -416,13 +418,13 @@ export default function TaskDetailScreen() {
       {saving && (
         <View style={{
           position: 'absolute', top: 70, right: Spacing.lg,
-          backgroundColor: Colors.surface, borderRadius: Radius.full,
+          backgroundColor: colors.surface, borderRadius: Radius.full,
           paddingHorizontal: 12, paddingVertical: 6,
-          borderWidth: 0.5, borderColor: Colors.border,
+          borderWidth: 0.5, borderColor: colors.border,
           flexDirection: 'row', alignItems: 'center', gap: 6,
         }}>
-          <Ionicons name="cloud-upload-outline" size={12} color={Colors.primary} />
-          <Text style={[Typography.caption, { color: Colors.primary }]}>Guardando...</Text>
+          <Ionicons name="cloud-upload-outline" size={12} color={colors.primary} />
+          <Text style={[typography.caption, { color: colors.primary }]}>Guardando...</Text>
         </View>
       )}
     </SafeAreaView>

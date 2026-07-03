@@ -7,7 +7,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { Colors, Typography, Spacing, Radius } from '../../lib/theme';
+import { Spacing, Radius } from '../../lib/theme';
+import { useTheme } from '../../lib/ThemeContext';
 import { Button, Input } from '../ui';
 
 interface UploadDocumentModalProps {
@@ -29,6 +30,7 @@ function formatFileSize(bytes: number): string {
 }
 
 export function UploadDocumentModal({ visible, onClose, onUpload, uploadProgress }: UploadDocumentModalProps) {
+  const { colors, typography } = useTheme();
   const [description, setDescription] = useState('');
   const [docType, setDocType] = useState('Otro');
   const [selectedFile, setSelectedFile] = useState<{ uri: string; name: string; mimeType: string; size: number } | null>(null);
@@ -121,50 +123,50 @@ export function UploadDocumentModal({ visible, onClose, onUpload, uploadProgress
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: Colors.border }}>
+      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: colors.border }}>
           <TouchableOpacity onPress={() => { reset(); onClose(); }}>
-            <Ionicons name="close" size={24} color={Colors.textSecondary} />
+            <Ionicons name="close" size={24} color={colors.textSecondary} />
           </TouchableOpacity>
-          <Text style={Typography.h4}>Subir documento</Text>
+          <Text style={typography.h4}>Subir documento</Text>
           <View style={{ width: 24 }} />
         </View>
 
         <ScrollView contentContainerStyle={{ padding: Spacing.lg, gap: Spacing.lg }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {error ? (
-            <View style={{ backgroundColor: Colors.dangerMuted, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 0.5, borderColor: Colors.danger }}>
-              <Text style={[Typography.bodySmall, { color: Colors.danger }]}>{error}</Text>
+            <View style={{ backgroundColor: colors.dangerMuted, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 0.5, borderColor: colors.danger }}>
+              <Text style={[typography.bodySmall, { color: colors.danger }]}>{error}</Text>
             </View>
           ) : null}
 
           <View style={{ gap: Spacing.sm }}>
-            <Text style={[Typography.label, { color: Colors.textSecondary }]}>Archivo *</Text>
+            <Text style={[typography.label, { color: colors.textSecondary }]}>Archivo *</Text>
             <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-              <TouchableOpacity onPress={pickDocument} style={{ flex: 1, backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.border, borderStyle: 'dashed', padding: Spacing.md, alignItems: 'center', gap: 6 }}>
-                <Ionicons name="document-outline" size={22} color={Colors.textMuted} />
-                <Text style={[Typography.caption, { color: Colors.textMuted }]}>Archivo</Text>
+              <TouchableOpacity onPress={pickDocument} style={{ flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', padding: Spacing.md, alignItems: 'center', gap: 6 }}>
+                <Ionicons name="document-outline" size={22} color={colors.textMuted} />
+                <Text style={[typography.caption, { color: colors.textMuted }]}>Archivo</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={pickImage} style={{ flex: 1, backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.border, borderStyle: 'dashed', padding: Spacing.md, alignItems: 'center', gap: 6 }}>
-                <Ionicons name="image-outline" size={22} color={Colors.textMuted} />
-                <Text style={[Typography.caption, { color: Colors.textMuted }]}>Galería</Text>
+              <TouchableOpacity onPress={pickImage} style={{ flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', padding: Spacing.md, alignItems: 'center', gap: 6 }}>
+                <Ionicons name="image-outline" size={22} color={colors.textMuted} />
+                <Text style={[typography.caption, { color: colors.textMuted }]}>Galería</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={takePhoto} style={{ flex: 1, backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.border, borderStyle: 'dashed', padding: Spacing.md, alignItems: 'center', gap: 6 }}>
-                <Ionicons name="camera-outline" size={22} color={Colors.textMuted} />
-                <Text style={[Typography.caption, { color: Colors.textMuted }]}>Cámara</Text>
+              <TouchableOpacity onPress={takePhoto} style={{ flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', padding: Spacing.md, alignItems: 'center', gap: 6 }}>
+                <Ionicons name="camera-outline" size={22} color={colors.textMuted} />
+                <Text style={[typography.caption, { color: colors.textMuted }]}>Cámara</Text>
               </TouchableOpacity>
             </View>
 
             {selectedFile && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.successMuted, borderRadius: Radius.md, padding: Spacing.sm, borderWidth: 0.5, borderColor: Colors.success }}>
-                <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: colors.successMuted, borderRadius: Radius.md, padding: Spacing.sm, borderWidth: 0.5, borderColor: colors.success }}>
+                <Ionicons name="checkmark-circle" size={16} color={colors.success} />
                 <View style={{ flex: 1 }}>
-                  <Text style={[Typography.bodySmall, { color: Colors.success }]} numberOfLines={1}>{selectedFile.name}</Text>
+                  <Text style={[typography.bodySmall, { color: colors.success }]} numberOfLines={1}>{selectedFile.name}</Text>
                   {selectedFile.size > 0 && (
-                    <Text style={[Typography.caption, { color: Colors.success }]}>{formatFileSize(selectedFile.size)}</Text>
+                    <Text style={[typography.caption, { color: colors.success }]}>{formatFileSize(selectedFile.size)}</Text>
                   )}
                 </View>
                 <TouchableOpacity onPress={() => setSelectedFile(null)}>
-                  <Ionicons name="close" size={16} color={Colors.success} />
+                  <Ionicons name="close" size={16} color={colors.success} />
                 </TouchableOpacity>
               </View>
             )}
@@ -173,25 +175,25 @@ export function UploadDocumentModal({ visible, onClose, onUpload, uploadProgress
           {loading && uploadProgress > 0 && (
             <View style={{ gap: 8 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={[Typography.caption, { color: Colors.textMuted }]}>Subiendo...</Text>
-                <Text style={[Typography.caption, { color: Colors.primary }]}>{uploadProgress}%</Text>
+                <Text style={[typography.caption, { color: colors.textMuted }]}>Subiendo...</Text>
+                <Text style={[typography.caption, { color: colors.primary }]}>{uploadProgress}%</Text>
               </View>
-              <View style={{ height: 4, backgroundColor: Colors.surfaceTertiary, borderRadius: 2 }}>
-                <View style={{ height: 4, width: `${uploadProgress}%`, backgroundColor: Colors.primary, borderRadius: 2 }} />
+              <View style={{ height: 4, backgroundColor: colors.surfaceTertiary, borderRadius: 2 }}>
+                <View style={{ height: 4, width: `${uploadProgress}%`, backgroundColor: colors.primary, borderRadius: 2 }} />
               </View>
             </View>
           )}
 
           <View style={{ gap: 8 }}>
-            <Text style={[Typography.label, { color: Colors.textSecondary }]}>Tipo de documento</Text>
+            <Text style={[typography.label, { color: colors.textSecondary }]}>Tipo de documento</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 {DOC_TYPES.map((t) => (
                   <TouchableOpacity key={t} onPress={() => setDocType(t)}
                     style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: Radius.full, borderWidth: 1,
-                      borderColor: docType === t ? Colors.primary : Colors.border,
-                      backgroundColor: docType === t ? Colors.primaryMuted : 'transparent' }}>
-                    <Text style={{ fontSize: 12, fontWeight: '500', color: docType === t ? Colors.primary : Colors.textSecondary }}>{t}</Text>
+                      borderColor: docType === t ? colors.primary : colors.border,
+                      backgroundColor: docType === t ? colors.primaryMuted : 'transparent' }}>
+                    <Text style={{ fontSize: 12, fontWeight: '500', color: docType === t ? colors.primary : colors.textSecondary }}>{t}</Text>
                   </TouchableOpacity>
                 ))}
               </View>

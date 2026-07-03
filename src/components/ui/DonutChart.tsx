@@ -1,6 +1,7 @@
 import { View, Text } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
-import { Colors, Typography, Spacing } from '../../lib/theme';
+import { Spacing } from '../../lib/theme';
+import { useTheme } from '../../lib/ThemeContext';
 
 interface DonutSegment {
   label: string;
@@ -17,6 +18,7 @@ interface DonutChartProps {
 }
 
 export function DonutChart({ segments, size = 140, strokeWidth = 18, centerLabel, centerValue }: DonutChartProps) {
+  const { colors, typography } = useTheme();
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const total = segments.reduce((acc, s) => acc + s.value, 0);
@@ -43,7 +45,7 @@ export function DonutChart({ segments, size = 140, strokeWidth = 18, centerLabel
           {/* Track de fondo */}
           <Circle
             cx={size / 2} cy={size / 2} r={radius}
-            stroke={Colors.surfaceTertiary} strokeWidth={strokeWidth} fill="none"
+            stroke={colors.surfaceTertiary} strokeWidth={strokeWidth} fill="none"
           />
           {total === 0 ? null : arcs.map((arc, i) => (
             <Circle
@@ -58,21 +60,22 @@ export function DonutChart({ segments, size = 140, strokeWidth = 18, centerLabel
         </G>
       </Svg>
       <View style={{ position: 'absolute', alignItems: 'center' }}>
-        {centerValue && <Text style={{ fontSize: 24, fontWeight: '700', color: Colors.textPrimary }}>{centerValue}</Text>}
-        {centerLabel && <Text style={[Typography.caption, { color: Colors.textMuted }]}>{centerLabel}</Text>}
+        {centerValue && <Text style={{ fontSize: 24, fontWeight: '700', color: colors.textPrimary }}>{centerValue}</Text>}
+        {centerLabel && <Text style={[typography.caption, { color: colors.textMuted }]}>{centerLabel}</Text>}
       </View>
     </View>
   );
 }
 
 export function DonutLegend({ segments }: { segments: DonutSegment[] }) {
+  const { colors, typography } = useTheme();
   return (
     <View style={{ gap: Spacing.sm }}>
       {segments.map((s, i) => (
         <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
           <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: s.color }} />
-          <Text style={[Typography.bodySmall, { flex: 1, color: Colors.textSecondary }]}>{s.label}</Text>
-          <Text style={[Typography.bodySmall, { fontWeight: '600', color: Colors.textPrimary }]}>{s.value}</Text>
+          <Text style={[typography.bodySmall, { flex: 1, color: colors.textSecondary }]}>{s.label}</Text>
+          <Text style={[typography.bodySmall, { fontWeight: '600', color: colors.textPrimary }]}>{s.value}</Text>
         </View>
       ))}
     </View>

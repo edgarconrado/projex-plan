@@ -6,7 +6,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Project, ProjectStatus, CreateProjectDTO } from '../../types';
-import { Colors, Typography, Spacing, Radius } from '../../lib/theme';
+import { Spacing, Radius } from '../../lib/theme';
+import { useTheme } from '../../lib/ThemeContext';
 import { Button, Input } from '../ui';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -29,6 +30,7 @@ const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
 export function ProjectFormModal({
   visible, onClose, onSubmit, initialData,
 }: ProjectFormModalProps) {
+  const { colors, typography } = useTheme();
   const isEditing = !!initialData;
 
   const [name, setName] = useState(initialData?.name ?? '');
@@ -67,20 +69,20 @@ export function ProjectFormModal({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <KeyboardAvoidingView
-        style={{ flex: 1, backgroundColor: Colors.background }}
+        style={{ flex: 1, backgroundColor: colors.background }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/* Header */}
         <View style={{
           flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-          padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: Colors.border,
+          padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: colors.border,
         }}>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color={Colors.textSecondary} />
+            <Ionicons name="close" size={24} color={colors.textSecondary} />
           </TouchableOpacity>
-          <Text style={Typography.h4}>{isEditing ? 'Editar proyecto' : 'Nuevo proyecto'}</Text>
+          <Text style={typography.h4}>{isEditing ? 'Editar proyecto' : 'Nuevo proyecto'}</Text>
           <View style={{ width: 24 }} />
         </View>
 
@@ -90,8 +92,8 @@ export function ProjectFormModal({
           showsVerticalScrollIndicator={false}
         >
           {error ? (
-            <View style={{ backgroundColor: Colors.dangerMuted, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 0.5, borderColor: Colors.danger }}>
-              <Text style={[Typography.bodySmall, { color: Colors.danger }]}>{error}</Text>
+            <View style={{ backgroundColor: colors.dangerMuted, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 0.5, borderColor: colors.danger }}>
+              <Text style={[typography.bodySmall, { color: colors.danger }]}>{error}</Text>
             </View>
           ) : null}
 
@@ -100,7 +102,7 @@ export function ProjectFormModal({
             value={name}
             onChangeText={setName}
             placeholder="Ej. Torre Reforma Norte"
-            leftIcon={<Ionicons name="briefcase-outline" size={18} color={Colors.textMuted} />}
+            leftIcon={<Ionicons name="briefcase-outline" size={18} color={colors.textMuted} />}
           />
 
           <Input
@@ -115,7 +117,7 @@ export function ProjectFormModal({
 
           {/* Status */}
           <View style={{ gap: 8 }}>
-            <Text style={[Typography.label, { color: Colors.textSecondary }]}>Estado</Text>
+            <Text style={[typography.label, { color: colors.textSecondary }]}>Estado</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {STATUS_OPTIONS.map((opt) => (
                 <TouchableOpacity
@@ -125,13 +127,13 @@ export function ProjectFormModal({
                     paddingHorizontal: 14, paddingVertical: 7,
                     borderRadius: Radius.full,
                     borderWidth: 1,
-                    borderColor: status === opt.value ? Colors.primary : Colors.border,
-                    backgroundColor: status === opt.value ? Colors.primaryMuted : 'transparent',
+                    borderColor: status === opt.value ? colors.primary : colors.border,
+                    backgroundColor: status === opt.value ? colors.primaryMuted : 'transparent',
                   }}
                 >
                   <Text style={{
                     fontSize: 13, fontWeight: '500',
-                    color: status === opt.value ? Colors.primary : Colors.textSecondary,
+                    color: status === opt.value ? colors.primary : colors.textSecondary,
                   }}>
                     {opt.label}
                   </Text>
@@ -145,7 +147,7 @@ export function ProjectFormModal({
             value={city}
             onChangeText={setCity}
             placeholder="Guadalajara"
-            leftIcon={<Ionicons name="location-outline" size={18} color={Colors.textMuted} />}
+            leftIcon={<Ionicons name="location-outline" size={18} color={colors.textMuted} />}
           />
 
           <Input
@@ -153,7 +155,7 @@ export function ProjectFormModal({
             value={address}
             onChangeText={setAddress}
             placeholder="Av. Reforma 123"
-            leftIcon={<Ionicons name="map-outline" size={18} color={Colors.textMuted} />}
+            leftIcon={<Ionicons name="map-outline" size={18} color={colors.textMuted} />}
           />
 
           <Input
@@ -162,29 +164,29 @@ export function ProjectFormModal({
             onChangeText={setBudget}
             placeholder="0.00"
             keyboardType="numeric"
-            leftIcon={<Ionicons name="cash-outline" size={18} color={Colors.textMuted} />}
+            leftIcon={<Ionicons name="cash-outline" size={18} color={colors.textMuted} />}
           />
 
           <View>
-            <Text style={[Typography.bodySmall, { color: Colors.textSecondary, marginBottom: 6 }]}>Fecha límite</Text>
+            <Text style={[typography.bodySmall, { color: colors.textSecondary, marginBottom: 6 }]}>Fecha límite</Text>
             <TouchableOpacity
               onPress={() => setShowDatePicker(true)}
               style={{
                 flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-                backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md,
-                borderWidth: 0.5, borderColor: Colors.border,
+                backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md,
+                borderWidth: 0.5, borderColor: colors.border,
                 paddingHorizontal: Spacing.md, paddingVertical: 14,
               }}
             >
-              <Ionicons name="calendar-outline" size={18} color={Colors.textMuted} />
-              <Text style={{ color: deadline ? Colors.textPrimary : Colors.textMuted, fontSize: 15 }}>
+              <Ionicons name="calendar-outline" size={18} color={colors.textMuted} />
+              <Text style={{ color: deadline ? colors.textPrimary : colors.textMuted, fontSize: 15 }}>
                 {deadline
                   ? new Date(deadline + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
                   : 'Selecciona una fecha'}
               </Text>
               {deadline ? (
                 <TouchableOpacity onPress={() => setDeadline('')} style={{ marginLeft: 'auto' }}>
-                  <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
+                  <Ionicons name="close-circle" size={18} color={colors.textMuted} />
                 </TouchableOpacity>
               ) : null}
             </TouchableOpacity>

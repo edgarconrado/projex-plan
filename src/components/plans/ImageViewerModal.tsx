@@ -5,7 +5,8 @@ import {
   Animated, PanResponder,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, Typography } from '../../lib/theme';
+import { Spacing } from '../../lib/theme';
+import { useTheme } from '../../lib/ThemeContext';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -17,6 +18,7 @@ interface ImageViewerModalProps {
 }
 
 export function ImageViewerModal({ visible, imageUrl, fileName, onClose }: ImageViewerModalProps) {
+  const { colors, typography } = useTheme();
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
 
@@ -130,7 +132,7 @@ export function ImageViewerModal({ visible, imageUrl, fileName, onClose }: Image
             <Ionicons name="close" size={26} color="#fff" />
           </TouchableOpacity>
           {fileName && (
-            <Text style={[Typography.bodySmall, { color: '#fff', flex: 1, textAlign: 'center', marginHorizontal: Spacing.sm }]} numberOfLines={1}>
+            <Text style={[typography.bodySmall, { color: '#fff', flex: 1, textAlign: 'center', marginHorizontal: Spacing.sm }]} numberOfLines={1}>
               {fileName}
             </Text>
           )}
@@ -138,12 +140,12 @@ export function ImageViewerModal({ visible, imageUrl, fileName, onClose }: Image
         </View>
 
         {!loaded && !error && (
-          <ActivityIndicator size="large" color={Colors.primary} style={{ position: 'absolute', top: '50%', left: '50%', marginLeft: -18, marginTop: -18 }} />
+          <ActivityIndicator size="large" color={colors.primary} style={{ position: 'absolute', top: '50%', left: '50%', marginLeft: -18, marginTop: -18 }} />
         )}
 
         {error ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md, padding: Spacing.xl }}>
-            <Ionicons name="alert-circle-outline" size={40} color={Colors.danger} />
+            <Ionicons name="alert-circle-outline" size={40} color={colors.danger} />
             <Text style={{ color: '#fff', textAlign: 'center' }}>No se pudo cargar la imagen</Text>
           </View>
         ) : (

@@ -6,7 +6,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Radius } from '../../lib/theme';
+import { Spacing, Radius } from '../../lib/theme';
+import { useTheme } from '../../lib/ThemeContext';
 import { Plan } from '../../types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -23,6 +24,7 @@ interface RevisionHistoryModalProps {
 export function RevisionHistoryModal({
   visible, onClose, plan, fetchHistory, onSelectRevision, projectId,
 }: RevisionHistoryModalProps) {
+  const { colors, typography } = useTheme();
   const [history, setHistory] = useState<Plan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -39,24 +41,24 @@ export function RevisionHistoryModal({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
         <View style={{
           flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-          padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: Colors.border,
+          padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: colors.border,
         }}>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color={Colors.textSecondary} />
+            <Ionicons name="close" size={24} color={colors.textSecondary} />
           </TouchableOpacity>
           <View style={{ alignItems: 'center' }}>
-            <Text style={Typography.h4}>Historial de revisiones</Text>
-            <Text style={[Typography.caption, { color: Colors.textMuted }]}>{plan.title}</Text>
+            <Text style={typography.h4}>Historial de revisiones</Text>
+            <Text style={[typography.caption, { color: colors.textMuted }]}>{plan.title}</Text>
           </View>
           <View style={{ width: 24 }} />
         </View>
 
         {isLoading ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <ActivityIndicator color={Colors.primary} />
+            <ActivityIndicator color={colors.primary} />
           </View>
         ) : (
           <FlatList
@@ -70,9 +72,9 @@ export function RevisionHistoryModal({
               return (
                 <View
                   style={{
-                    backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.lg,
+                    backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg,
                     borderWidth: isCurrent ? 1 : 0.5,
-                    borderColor: isCurrent ? Colors.primary : Colors.border,
+                    borderColor: isCurrent ? colors.primary : colors.border,
                     padding: Spacing.md,
                     gap: Spacing.sm,
                   }}
@@ -83,37 +85,37 @@ export function RevisionHistoryModal({
                   >
                     <View style={{
                       width: 44, height: 44, borderRadius: Radius.md,
-                      backgroundColor: isCurrent ? Colors.primaryMuted : Colors.surfaceTertiary,
+                      backgroundColor: isCurrent ? colors.primaryMuted : colors.surfaceTertiary,
                       alignItems: 'center', justifyContent: 'center',
                     }}>
                       <Ionicons
                         name={item.file_type === 'pdf' ? 'document-text-outline' : 'image-outline'}
                         size={20}
-                        color={isCurrent ? Colors.primary : Colors.textMuted}
+                        color={isCurrent ? colors.primary : colors.textMuted}
                       />
                     </View>
 
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={[Typography.body, { fontWeight: '600' }]}>Rev. {item.revision}</Text>
+                        <Text style={[typography.body, { fontWeight: '600' }]}>Rev. {item.revision}</Text>
                         {isCurrent && (
-                          <View style={{ backgroundColor: Colors.primary, paddingHorizontal: 6, paddingVertical: 1, borderRadius: Radius.full }}>
-                            <Text style={{ fontSize: 9, fontWeight: '700', color: Colors.textInverse }}>VIGENTE</Text>
+                          <View style={{ backgroundColor: colors.primary, paddingHorizontal: 6, paddingVertical: 1, borderRadius: Radius.full }}>
+                            <Text style={{ fontSize: 9, fontWeight: '700', color: colors.textInverse }}>VIGENTE</Text>
                           </View>
                         )}
                       </View>
-                      <Text style={[Typography.caption, { color: Colors.textMuted, marginTop: 2 }]}>
+                      <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
                         {format(new Date(item.created_at), "d MMM yyyy, HH:mm", { locale: es })}
                         {item.uploader ? ` · ${item.uploader.full_name}` : ''}
                       </Text>
                       {annotationCount > 0 && (
-                        <Text style={[Typography.caption, { color: Colors.textMuted, marginTop: 2 }]}>
+                        <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
                           {annotationCount} {annotationCount === 1 ? 'anotación' : 'anotaciones'}
                         </Text>
                       )}
                     </View>
 
-                    <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                   </TouchableOpacity>
 
                   {!isCurrent && currentRevision && item.file_type !== 'pdf' && currentRevision.file_type !== 'pdf' && (
@@ -133,11 +135,11 @@ export function RevisionHistoryModal({
                       style={{
                         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
                         paddingVertical: 8, borderRadius: Radius.md,
-                        borderWidth: 0.5, borderColor: Colors.primary, backgroundColor: Colors.primaryMuted,
+                        borderWidth: 0.5, borderColor: colors.primary, backgroundColor: colors.primaryMuted,
                       }}
                     >
-                      <Ionicons name="swap-horizontal-outline" size={14} color={Colors.primary} />
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: Colors.primary }}>Comparar con vigente</Text>
+                      <Ionicons name="swap-horizontal-outline" size={14} color={colors.primary} />
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: colors.primary }}>Comparar con vigente</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -145,8 +147,8 @@ export function RevisionHistoryModal({
             }}
             ListEmptyComponent={
               <View style={{ alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.sm }}>
-                <Ionicons name="time-outline" size={40} color={Colors.textMuted} />
-                <Text style={[Typography.bodySmall, { color: Colors.textMuted }]}>Sin revisiones anteriores</Text>
+                <Ionicons name="time-outline" size={40} color={colors.textMuted} />
+                <Text style={[typography.bodySmall, { color: colors.textMuted }]}>Sin revisiones anteriores</Text>
               </View>
             }
           />

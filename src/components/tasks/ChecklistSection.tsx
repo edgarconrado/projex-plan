@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing } from '../../lib/theme';
+import { Spacing } from '../../lib/theme';
+import { useTheme } from '../../lib/ThemeContext';
 import { useChecklist } from '../../hooks/useChecklist';
 
 interface ChecklistSectionProps {
@@ -9,6 +10,7 @@ interface ChecklistSectionProps {
 }
 
 export function ChecklistSection({ taskId }: ChecklistSectionProps) {
+  const { colors, typography } = useTheme();
   const { items, completedCount, totalCount, addItem, toggleItem, deleteItem, updateItemText } = useChecklist(taskId);
   const [newItemText, setNewItemText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -26,8 +28,8 @@ export function ChecklistSection({ taskId }: ChecklistSectionProps) {
     <View style={{ gap: Spacing.sm }}>
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-        <Ionicons name="checkbox-outline" size={18} color={Colors.primary} />
-        <Text style={[Typography.bodySmall, { fontWeight: '700' }]}>
+        <Ionicons name="checkbox-outline" size={18} color={colors.primary} />
+        <Text style={[typography.bodySmall, { fontWeight: '700' }]}>
           Checklist {totalCount > 0 ? `(${completedCount}/${totalCount})` : ''}
         </Text>
       </View>
@@ -35,10 +37,10 @@ export function ChecklistSection({ taskId }: ChecklistSectionProps) {
       {/* Barra de progreso */}
       {totalCount > 0 && (
         <View style={{ gap: 4 }}>
-          <View style={{ backgroundColor: Colors.surfaceTertiary, borderRadius: 4, height: 6, overflow: 'hidden' }}>
-            <View style={{ backgroundColor: Colors.success, height: 6, width: `${progressPct}%`, borderRadius: 4 }} />
+          <View style={{ backgroundColor: colors.surfaceTertiary, borderRadius: 4, height: 6, overflow: 'hidden' }}>
+            <View style={{ backgroundColor: colors.success, height: 6, width: `${progressPct}%`, borderRadius: 4 }} />
           </View>
-          <Text style={[Typography.caption, { color: Colors.textMuted }]}>{progressPct}% completado</Text>
+          <Text style={[typography.caption, { color: colors.textMuted }]}>{progressPct}% completado</Text>
         </View>
       )}
 
@@ -49,7 +51,7 @@ export function ChecklistSection({ taskId }: ChecklistSectionProps) {
             <Ionicons
               name={item.is_completed ? 'checkbox' : 'square-outline'}
               size={22}
-              color={item.is_completed ? Colors.success : Colors.textMuted}
+              color={item.is_completed ? colors.success : colors.textMuted}
             />
           </TouchableOpacity>
 
@@ -60,7 +62,7 @@ export function ChecklistSection({ taskId }: ChecklistSectionProps) {
               onBlur={() => { updateItemText(item.id, editingText); setEditingId(null); }}
               onSubmitEditing={() => { updateItemText(item.id, editingText); setEditingId(null); }}
               autoFocus
-              style={{ flex: 1, fontSize: 14, color: Colors.textPrimary, borderBottomWidth: 1, borderBottomColor: Colors.primary, paddingVertical: 2 }}
+              style={{ flex: 1, fontSize: 14, color: colors.textPrimary, borderBottomWidth: 1, borderBottomColor: colors.primary, paddingVertical: 2 }}
             />
           ) : (
             <TouchableOpacity
@@ -69,7 +71,7 @@ export function ChecklistSection({ taskId }: ChecklistSectionProps) {
             >
               <Text style={{
                 fontSize: 14,
-                color: item.is_completed ? Colors.textMuted : Colors.textPrimary,
+                color: item.is_completed ? colors.textMuted : colors.textPrimary,
                 textDecorationLine: item.is_completed ? 'line-through' : 'none',
               }}>
                 {item.item}
@@ -78,26 +80,26 @@ export function ChecklistSection({ taskId }: ChecklistSectionProps) {
           )}
 
           <TouchableOpacity onPress={() => deleteItem(item.id)} style={{ padding: 4 }}>
-            <Ionicons name="close" size={16} color={Colors.textMuted} />
+            <Ionicons name="close" size={16} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
       ))}
 
       {/* Input para nuevo item */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: 4 }}>
-        <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
+        <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
         <TextInput
           value={newItemText}
           onChangeText={setNewItemText}
           placeholder="Agregar elemento..."
-          placeholderTextColor={Colors.textMuted}
+          placeholderTextColor={colors.textMuted}
           onSubmitEditing={handleAdd}
           returnKeyType="done"
-          style={{ flex: 1, fontSize: 14, color: Colors.textPrimary, paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: Colors.border }}
+          style={{ flex: 1, fontSize: 14, color: colors.textPrimary, paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: colors.border }}
         />
         {newItemText.trim().length > 0 && (
           <TouchableOpacity onPress={handleAdd}>
-            <Ionicons name="checkmark-circle" size={22} color={Colors.primary} />
+            <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
           </TouchableOpacity>
         )}
       </View>

@@ -8,7 +8,8 @@ import * as Location from 'expo-location';
 import * as MediaLibrary from 'expo-media-library';
 import { captureRef } from 'react-native-view-shot';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Radius } from '../../lib/theme';
+import { Spacing, Radius } from '../../lib/theme';
+import { useTheme } from '../../lib/ThemeContext';
 import { uploadFile, generateFileName, STORAGE_BUCKETS, supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthContext';
 
@@ -20,6 +21,7 @@ interface MapPlanViewerProps {
 }
 
 export function MapPlanViewer({ visible, onClose, projectId, onPlanSaved }: MapPlanViewerProps) {
+  const { colors, typography } = useTheme();
   const { user } = useAuth();
   const mapRef = useRef<MapView>(null);
   const [mapType, setMapType] = useState<MapType>('satellite');
@@ -77,8 +79,7 @@ export function MapPlanViewer({ visible, onClose, projectId, onPlanSaved }: MapP
         revision: 'Rev. 1',
         status: 'Vigente',
         file_url: url,
-        file_name: fileName,
-        file_type: 'jpg',
+        file_type: 'image',
         mime_type: 'image/jpeg',
         is_current_revision: true,
       });
@@ -107,16 +108,16 @@ export function MapPlanViewer({ visible, onClose, projectId, onPlanSaved }: MapP
         <View style={{
           flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
           paddingHorizontal: Spacing.lg, paddingTop: 52, paddingBottom: Spacing.md,
-          backgroundColor: Colors.surface, borderBottomWidth: 0.5, borderBottomColor: Colors.border,
+          backgroundColor: colors.surface, borderBottomWidth: 0.5, borderBottomColor: colors.border,
         }}>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            <Ionicons name="close" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={[Typography.h4]}>Mapa de sitio</Text>
+          <Text style={[typography.h4]}>Mapa de sitio</Text>
           <TouchableOpacity onPress={toggleMapType}>
             <Ionicons
               name={mapType === 'satellite' ? 'map-outline' : 'earth-outline'}
-              size={24} color={Colors.primary}
+              size={24} color={colors.primary}
             />
           </TouchableOpacity>
         </View>
@@ -145,43 +146,43 @@ export function MapPlanViewer({ visible, onClose, projectId, onPlanSaved }: MapP
             disabled={isLocating}
             style={{
               width: 48, height: 48, borderRadius: 24,
-              backgroundColor: Colors.surface,
+              backgroundColor: colors.surface,
               alignItems: 'center', justifyContent: 'center',
               shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.3, shadowRadius: 4, elevation: 5,
             }}
           >
             {isLocating
-              ? <ActivityIndicator size="small" color={Colors.primary} />
-              : <Ionicons name="locate-outline" size={22} color={Colors.primary} />
+              ? <ActivityIndicator size="small" color={colors.primary} />
+              : <Ionicons name="locate-outline" size={22} color={colors.primary} />
             }
           </TouchableOpacity>
         </View>
 
         {/* Panel inferior */}
         <View style={{
-          backgroundColor: Colors.surface,
-          borderTopWidth: 0.5, borderTopColor: Colors.border,
+          backgroundColor: colors.surface,
+          borderTopWidth: 0.5, borderTopColor: colors.border,
           padding: Spacing.lg, gap: Spacing.sm,
         }}>
-          <Text style={[Typography.caption, { color: Colors.textMuted, textAlign: 'center' }]}>
+          <Text style={[typography.caption, { color: colors.textMuted, textAlign: 'center' }]}>
             Navega y centra el mapa en el área de tu proyecto
           </Text>
           <TouchableOpacity
             onPress={handleCapture}
             disabled={isSaving}
             style={{
-              backgroundColor: Colors.primary, borderRadius: Radius.lg,
+              backgroundColor: colors.primary, borderRadius: Radius.lg,
               padding: Spacing.md, flexDirection: 'row',
               alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
               opacity: isSaving ? 0.7 : 1,
             }}
           >
             {isSaving
-              ? <ActivityIndicator size="small" color={Colors.textInverse} />
-              : <Ionicons name="camera-outline" size={20} color={Colors.textInverse} />
+              ? <ActivityIndicator size="small" color={colors.textInverse} />
+              : <Ionicons name="camera-outline" size={20} color={colors.textInverse} />
             }
-            <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.textInverse }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textInverse }}>
               {isSaving ? 'Guardando...' : 'Usar este mapa como plano'}
             </Text>
           </TouchableOpacity>

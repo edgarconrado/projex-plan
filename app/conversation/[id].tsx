@@ -8,10 +8,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useMessages } from '../../src/hooks/useChat';
 import { ChatBubble } from '../../src/components/chat/ChatBubble';
-import { Colors, Typography, Spacing, Radius } from '../../src/lib/theme';
+import { Spacing, Radius } from '../../src/lib/theme';
+import { useTheme } from '../../src/lib/ThemeContext';
 import { useAuth } from '../../src/lib/AuthContext';
 
 export default function ConversationScreen() {
+  const { colors, typography } = useTheme();
   const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
   const { user } = useAuth();
   const { messages, isLoading, sendMessage, markAsRead } = useMessages(id ?? '');
@@ -41,21 +43,21 @@ export default function ConversationScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Header */}
       <View style={{
         flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-        padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: Colors.border,
-        backgroundColor: Colors.surface,
+        padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: colors.border,
+        backgroundColor: colors.surface,
       }}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[Typography.h4]} numberOfLines={1}>{name ?? 'Conversación'}</Text>
+          <Text style={[typography.h4]} numberOfLines={1}>{name ?? 'Conversación'}</Text>
         </View>
         <TouchableOpacity>
-          <Ionicons name="ellipsis-horizontal" size={22} color={Colors.textSecondary} />
+          <Ionicons name="ellipsis-horizontal" size={22} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
@@ -81,8 +83,8 @@ export default function ConversationScreen() {
           ListEmptyComponent={
             !isLoading ? (
               <View style={{ alignItems: 'center', paddingTop: 60, gap: Spacing.md }}>
-                <Ionicons name="chatbubbles-outline" size={48} color={Colors.textMuted} />
-                <Text style={[Typography.bodySmall, { color: Colors.textMuted }]}>
+                <Ionicons name="chatbubbles-outline" size={48} color={colors.textMuted} />
+                <Text style={[typography.bodySmall, { color: colors.textMuted }]}>
                   Sé el primero en escribir
                 </Text>
               </View>
@@ -93,20 +95,20 @@ export default function ConversationScreen() {
         {/* Input */}
         <View style={{
           flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm,
-          padding: Spacing.md, borderTopWidth: 0.5, borderTopColor: Colors.border,
-          backgroundColor: Colors.surface,
+          padding: Spacing.md, borderTopWidth: 0.5, borderTopColor: colors.border,
+          backgroundColor: colors.surface,
         }}>
           <TextInput
             value={text}
             onChangeText={setText}
             placeholder="Escribe un mensaje..."
-            placeholderTextColor={Colors.textMuted}
+            placeholderTextColor={colors.textMuted}
             multiline
             style={{
-              flex: 1, backgroundColor: Colors.surfaceSecondary,
-              borderRadius: Radius.xl, borderWidth: 0.5, borderColor: Colors.border,
+              flex: 1, backgroundColor: colors.surfaceSecondary,
+              borderRadius: Radius.xl, borderWidth: 0.5, borderColor: colors.border,
               paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-              color: Colors.textPrimary, fontSize: 15, maxHeight: 120,
+              color: colors.textPrimary, fontSize: 15, maxHeight: 120,
             }}
           />
           <TouchableOpacity
@@ -114,14 +116,14 @@ export default function ConversationScreen() {
             disabled={!text.trim() || sending}
             style={{
               width: 40, height: 40, borderRadius: 20,
-              backgroundColor: text.trim() ? Colors.primary : Colors.surfaceSecondary,
+              backgroundColor: text.trim() ? colors.primary : colors.surfaceSecondary,
               alignItems: 'center', justifyContent: 'center',
             }}
           >
             <Ionicons
               name="send"
               size={18}
-              color={text.trim() ? Colors.textInverse : Colors.textMuted}
+              color={text.trim() ? colors.textInverse : colors.textMuted}
             />
           </TouchableOpacity>
         </View>
