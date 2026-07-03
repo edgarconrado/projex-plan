@@ -114,7 +114,7 @@ export async function sendPushNotification(
 ): Promise<void> {
   const messages = tokens
     .filter((t) => t.startsWith('ExponentPushToken'))
-    .map((to) => ({ to, title, body, data, sound: 'default', priority: 'high' }));
+    .map((to) => ({ to, title, body, data, sound: 'default', priority: 'high', channelId: 'default' }));
   if (messages.length === 0) return;
   try {
     await fetch('https://exp.host/--/api/v2/push/send', {

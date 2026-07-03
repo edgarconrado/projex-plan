@@ -8,6 +8,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../src/lib/supabase';
 import { useTasks } from '../../src/hooks/useTasks';
+import { useAuth } from '../../src/lib/AuthContext';
 import { Colors, Typography, Spacing, Radius, getPriorityColor, getPriorityLabel, getStatusLabel } from '../../src/lib/theme';
 import { Avatar, Badge, LoadingOverlay } from '../../src/components/ui';
 import { ChecklistSection } from '../../src/components/tasks/ChecklistSection';
@@ -32,10 +33,12 @@ const STATUSES: { value: TaskStatus; label: string }[] = [
 
 export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { user } = useAuth();
   const { updateTask, deleteTask, toggleChecklistItem, addChecklistItem } = useTasks();
 
   const [task, setTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [userProjectRole, setUserProjectRole] = useState<string | null>(null);
   const [members, setMembers] = useState<Profile[]>([]);
 
   const [editingTitle, setEditingTitle] = useState(false);
@@ -76,6 +79,7 @@ export default function TaskDetailScreen() {
 
   useEffect(() => {
     if (task?.project_id) {
+      // Cargar miembros del proyecto
       supabase
         .from('project_members')
         .select('profile:profiles(id, full_name, avatar_url, role, email, is_online, created_at, updated_at)')
@@ -83,8 +87,21 @@ export default function TaskDetailScreen() {
         .then(({ data }) => {
           if (data) setMembers(data.map((m: any) => m.profile).filter(Boolean) as Profile[]);
         });
+
+      // Obtener el rol del usuario actual en este proyecto
+      if (user) {
+        supabase
+          .from('project_members')
+          .select('role')
+          .eq('project_id', task.project_id)
+          .eq('user_id', user.id)
+          .single()
+          .then(({ data }) => {
+            setUserProjectRole(data?.role ?? null);
+          });
+      }
     }
-  }, [task?.project_id]);
+  }, [task?.project_id, user]);
 
   const handleUpdate = async (updates: Record<string, unknown>) => {
     if (!task) return;
@@ -162,6 +179,12 @@ export default function TaskDetailScreen() {
   const priorityColor = getPriorityColor(task.priority);
   const completedCount = task.checklist?.filter((i) => i.is_completed).length ?? 0;
   const totalCount = task.checklist?.length ?? 0;
+
+  // El viewer solo puede leer — no puede editar estado, prioridad, asignación ni campos
+  const canEdit = userProjectRole !== 'viewer' &&
+    (task.created_by === user?.id ||
+     task.assigned_to === user?.id ||
+     ['admin', 'project_manager', 'supervisor'].includes(userProjectRole ?? ''));
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
@@ -245,13 +268,23 @@ export default function TaskDetailScreen() {
             </View>
           )}
 
+          {/* Banner informativo para usuarios con rol viewer */}
+          {!canEdit && userProjectRole !== null && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 0.5, borderColor: Colors.border, padding: Spacing.md }}>
+              <Ionicons name="eye-outline" size={16} color={Colors.textMuted} />
+              <Text style={[Typography.caption, { color: Colors.textMuted, flex: 1 }]}>
+                Solo tienes permisos de lectura en este proyecto
+              </Text>
+            </View>
+          )}
+
           <View>
             <Text style={[Typography.label, { color: Colors.textSecondary, marginBottom: 8 }]}>Estado</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {STATUSES.map((s) => (
                 <TouchableOpacity
                   key={s.value}
-                  onPress={() => handleUpdate({ status: s.value, completed_at: s.value === 'completed' ? new Date().toISOString() : null })}
+                  onPress={() => canEdit && handleUpdate({ status: s.value, completed_at: s.value === 'completed' ? new Date().toISOString() : null })}
                   style={{
                     paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.full, borderWidth: 1,
                     borderColor: task.status === s.value ? Colors.primary : Colors.border,
@@ -272,7 +305,7 @@ export default function TaskDetailScreen() {
               {PRIORITIES.map((p) => (
                 <TouchableOpacity
                   key={p.value}
-                  onPress={() => handleUpdate({ priority: p.value })}
+                  onPress={() => canEdit && handleUpdate({ priority: p.value })}
                   style={{
                     flex: 1, paddingVertical: 10, borderRadius: Radius.md, borderWidth: 1, alignItems: 'center',
                     borderColor: task.priority === p.value ? p.color : Colors.border,
@@ -292,7 +325,7 @@ export default function TaskDetailScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <TouchableOpacity
-                  onPress={() => handleUpdate({ assigned_to: null })}
+                  onPress={() => canEdit && handleUpdate({ assigned_to: null })}
                   style={{
                     paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.full, borderWidth: 1,
                     borderColor: !task.assigned_to ? Colors.primary : Colors.border,
@@ -306,7 +339,7 @@ export default function TaskDetailScreen() {
                 {members.map((m) => (
                   <TouchableOpacity
                     key={m.id}
-                    onPress={() => handleUpdate({ assigned_to: m.id })}
+                    onPress={() => canEdit && handleUpdate({ assigned_to: m.id })}
                     style={{
                       flexDirection: 'row', alignItems: 'center', gap: 6,
                       paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.full, borderWidth: 1,
