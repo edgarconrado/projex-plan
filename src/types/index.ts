@@ -74,6 +74,7 @@ export interface Task {
   project?: Project | null;
   comments?: TaskComment[];
   checklist?: TaskChecklistItem[];
+  evidence_photo_url?: string | null;
 }
 
 export interface TaskComment {

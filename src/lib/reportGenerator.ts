@@ -36,10 +36,11 @@ export interface ReportData {
   plans: Plan[];
   documents: Document[];
   annotations: PlanAnnotation[];
+  siteLog?: { id: string; activity: string; observations?: string | null; visited_at: string; creator?: { full_name: string } | null }[];
 }
 
 export function generateReportHTML(data: ReportData): string {
-  const { project, tasks, plans, documents, annotations } = data;
+  const { project, tasks, plans, documents, annotations, siteLog = [] } = data;
 
   const totalTasks = tasks.length;
   const byStatus = {
@@ -267,6 +268,56 @@ export function generateReportHTML(data: ReportData): string {
     </table>` : ''}
 
     ${photosHTML}
+
+    <!-- Tareas completadas con evidencia fotográfica -->
+    ${(() => {
+      const withEvidence = tasks.filter(t => t.status === 'completed' && t.evidence_photo_url);
+      if (withEvidence.length === 0) return '';
+      return `
+      <div style="margin-top:32px;">
+        <h2 style="font-size:16px;font-weight:700;color:#111827;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #FFD700;">
+          📸 Evidencia fotográfica de tareas completadas (${withEvidence.length})
+        </h2>
+        <div style="background:#F3F4F6;border-radius:10px;padding:12px 16px;">
+          <div style="font-size:12px;color:#374151;">
+            ${withEvidence.map(t => `• ${t.title} — completada por ${t.assignee?.full_name ?? 'sin asignar'}`).join('<br/>')}
+          </div>
+          <div style="font-size:11px;color:#6B7280;margin-top:8px;font-style:italic;">
+            Las fotos de evidencia están disponibles en la app Projex Plan.
+          </div>
+        </div>
+      </div>`;
+    })()}
+
+    <!-- Bitácora de obra -->
+    ${siteLog.length > 0 ? `
+    <div style="margin-top:32px;">
+      <h2 style="font-size:16px;font-weight:700;color:#111827;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #FFD700;">
+        📓 Bitácora de obra (${siteLog.length} registro${siteLog.length !== 1 ? 's' : ''})
+      </h2>
+      <table style="width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden;border:1px solid #E5E7EB;margin-bottom:32px;">
+        <thead>
+          <tr style="background:#F3F4F6;">
+            <th style="padding:10px 12px;font-size:11px;font-weight:700;color:#374151;text-align:left;">FECHA Y HORA</th>
+            <th style="padding:10px 12px;font-size:11px;font-weight:700;color:#374151;text-align:left;">ACTIVIDAD</th>
+            <th style="padding:10px 12px;font-size:11px;font-weight:700;color:#374151;text-align:left;">OBSERVACIONES</th>
+            <th style="padding:10px 12px;font-size:11px;font-weight:700;color:#374151;text-align:center;">REGISTRADO POR</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${siteLog.map(entry => `
+          <tr style="border-bottom:1px solid #E5E7EB;">
+            <td style="padding:8px 12px;font-size:11px;color:#6B7280;white-space:nowrap;">
+              ${fmt(entry.visited_at)}<br/>
+              <span style="font-size:10px;">${new Date(entry.visited_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</span>
+            </td>
+            <td style="padding:8px 12px;font-size:12px;color:#111827;">${entry.activity}</td>
+            <td style="padding:8px 12px;font-size:11px;color:#6B7280;">${entry.observations ?? '—'}</td>
+            <td style="padding:8px 12px;font-size:11px;color:#6B7280;text-align:center;">${entry.creator?.full_name ?? '—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>` : ''}
 
     <!-- Footer -->
     <div style="margin-top:40px;padding-top:20px;border-top:1px solid #E5E7EB;text-align:center;">

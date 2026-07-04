@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  TextInput, Alert, KeyboardAvoidingView, Platform,
+  TextInput, Alert, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -13,6 +13,7 @@ import { Spacing, Radius, getPriorityColor, getPriorityLabel, getStatusLabel } f
 import { useTheme } from '../../src/lib/ThemeContext';
 import { Avatar, Badge, LoadingOverlay } from '../../src/components/ui';
 import { ChecklistSection } from '../../src/components/tasks/ChecklistSection';
+import { EvidencePhotoModal } from '../../src/components/tasks/EvidencePhotoModal';
 import { Task, TaskPriority, TaskStatus, Profile, TaskChecklistItem } from '../../src/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -52,6 +53,7 @@ export default function TaskDetailScreen() {
   const [dueDate, setDueDate] = useState('');
   const [newChecklistItem, setNewChecklistItem] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showEvidenceModal, setShowEvidenceModal] = useState(false);
 
   const fetchTask = async () => {
     if (!id) return;
@@ -267,6 +269,21 @@ export default function TaskDetailScreen() {
           {task && (
             <View style={{ backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.lg }}>
               <ChecklistSection taskId={task.id} />
+
+              {/* Foto de evidencia — se muestra si ya fue completada con foto */}
+              {task.evidence_photo_url && (
+                <View style={{ backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: `${colors.success}60`, padding: Spacing.md, gap: Spacing.sm }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                    <Ionicons name="camera" size={16} color={colors.success} />
+                    <Text style={[typography.bodySmall, { fontWeight: '700', color: colors.success }]}>Foto de evidencia</Text>
+                  </View>
+                  <Image
+                    source={{ uri: task.evidence_photo_url }}
+                    style={{ width: '100%', height: 180, borderRadius: Radius.md }}
+                    resizeMode="cover"
+                  />
+                </View>
+              )}
             </View>
           )}
 
@@ -286,7 +303,14 @@ export default function TaskDetailScreen() {
               {STATUSES.map((s) => (
                 <TouchableOpacity
                   key={s.value}
-                  onPress={() => canEdit && handleUpdate({ status: s.value, completed_at: s.value === 'completed' ? new Date().toISOString() : null })}
+                  onPress={() => {
+                    if (!canEdit) return;
+                    if (s.value === 'completed') {
+                      setShowEvidenceModal(true);
+                    } else {
+                      handleUpdate({ status: s.value, completed_at: null });
+                    }
+                  }}
                   style={{
                     paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.full, borderWidth: 1,
                     borderColor: task.status === s.value ? colors.primary : colors.border,
@@ -426,6 +450,30 @@ export default function TaskDetailScreen() {
           <Ionicons name="cloud-upload-outline" size={12} color={colors.primary} />
           <Text style={[typography.caption, { color: colors.primary }]}>Guardando...</Text>
         </View>
+      )}
+
+      {task && (
+        <EvidencePhotoModal
+          visible={showEvidenceModal}
+          taskTitle={task.title}
+          projectId={task.project_id}
+          onConfirm={async (photoUrl) => {
+            setShowEvidenceModal(false);
+            await handleUpdate({
+              status: 'completed',
+              completed_at: new Date().toISOString(),
+              evidence_photo_url: photoUrl,
+            });
+          }}
+          onSkip={async () => {
+            setShowEvidenceModal(false);
+            await handleUpdate({
+              status: 'completed',
+              completed_at: new Date().toISOString(),
+            });
+          }}
+          onClose={() => setShowEvidenceModal(false)}
+        />
       )}
     </SafeAreaView>
   );

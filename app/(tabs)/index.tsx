@@ -199,7 +199,7 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Accesos rápidos al proyecto activo: Planos y Documentos */}
+        {/* Accesos rápidos al proyecto activo: Planos, Documentos y Bitácora */}
         {activeProject && (
           <View style={{ flexDirection: 'row', gap: Spacing.md }}>
             <TouchableOpacity
@@ -228,6 +228,20 @@ export default function DashboardScreen() {
                 <Ionicons name="folder-outline" size={18} color={colors.primary} />
               </View>
               <Text style={[typography.bodySmall, { fontWeight: '600' }]}>Documentos</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/sitelog/[projectId]', params: { projectId: activeProject.id, projectName: activeProject.name } } as never)}
+              style={{
+                flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg,
+                borderWidth: 0.5, borderColor: colors.border,
+                padding: Spacing.md, alignItems: 'center', gap: 6,
+              }}
+            >
+              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="book-outline" size={18} color={colors.primary} />
+              </View>
+              <Text style={[typography.bodySmall, { fontWeight: '600' }]}>Bitácora</Text>
             </TouchableOpacity>
           </View>
         )}

@@ -45,12 +45,19 @@ export function useReport() {
         .eq('type', 'reference')
         .not('attachment_thumbnail', 'is', null);
 
+      const { data: siteLogData } = await supabase
+        .from('site_log')
+        .select('*, creator:profiles(id, full_name)')
+        .eq('project_id', project.id)
+        .order('visited_at', { ascending: false });
+
       const html = generateReportHTML({
         project,
         tasks: tasks.filter(t => t.project_id === project.id),
         plans: (plansData ?? []) as Plan[],
         documents: (docsData ?? []) as Document[],
         annotations: (annotationsData ?? []) as PlanAnnotation[],
+        siteLog: (siteLogData ?? []) as any[],
       });
 
       const { uri: tempUri } = await Promise.race([
