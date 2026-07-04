@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, Modal, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -243,6 +243,54 @@ export default function DashboardScreen() {
               </View>
               <Text style={[typography.bodySmall, { fontWeight: '600' }]}>Bitácora</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/budget/[projectId]', params: { projectId: activeProject.id, projectName: activeProject.name } } as never)}
+              style={{
+                flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg,
+                borderWidth: 0.5, borderColor: colors.border,
+                padding: Spacing.md, alignItems: 'center', gap: 6,
+              }}
+            >
+              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="wallet-outline" size={18} color={colors.primary} />
+              </View>
+              <Text style={[typography.bodySmall, { fontWeight: '600' }]}>Presupuesto</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Segunda fila de accesos: Riesgos, Gantt, EVM */}
+        {activeProject && (
+          <View style={{ flexDirection: 'row', gap: Spacing.md }}>
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/risks/[projectId]', params: { projectId: activeProject.id, projectName: activeProject.name } } as never)}
+              style={{ flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md, alignItems: 'center', gap: 6 }}
+            >
+              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#EF444415', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="warning-outline" size={18} color="#EF4444" />
+              </View>
+              <Text style={[typography.bodySmall, { fontWeight: '600' }]}>Riesgos</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/gantt/[projectId]', params: { projectId: activeProject.id, projectName: activeProject.name } } as never)}
+              style={{ flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md, alignItems: 'center', gap: 6 }}
+            >
+              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#3B82F615', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="bar-chart-outline" size={18} color="#3B82F6" />
+              </View>
+              <Text style={[typography.bodySmall, { fontWeight: '600' }]}>Gantt</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/evm/[projectId]', params: { projectId: activeProject.id, projectName: activeProject.name } } as never)}
+              style={{ flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md, alignItems: 'center', gap: 6 }}
+            >
+              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#22C55E15', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="trending-up-outline" size={18} color="#22C55E" />
+              </View>
+              <Text style={[typography.bodySmall, { fontWeight: '600' }]}>EVM</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -338,6 +386,17 @@ export default function DashboardScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Spinner overlay al generar PDF */}
+      <Modal visible={isGenerating} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ backgroundColor: colors.surface, borderRadius: Radius.lg, padding: Spacing.xl, alignItems: 'center', gap: Spacing.md, minWidth: 200 }}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[typography.bodySmall, { fontWeight: '700' }]}>Generando reporte PDF...</Text>
+            <Text style={[typography.caption, { color: colors.textMuted, textAlign: 'center' }]}>Esto puede tomar unos segundos</Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

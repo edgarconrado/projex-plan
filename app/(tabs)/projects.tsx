@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert, ScrollView } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert, ScrollView, Modal, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -202,6 +202,16 @@ export default function ProjectsScreen() {
         onSubmit={editingProject ? (dto) => updateProject(editingProject.id, dto) : createProject}
         initialData={editingProject}
       />
+
+      <Modal visible={isGenerating} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ backgroundColor: colors.surface, borderRadius: Radius.lg, padding: Spacing.xl, alignItems: 'center', gap: Spacing.md, minWidth: 200 }}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[typography.bodySmall, { fontWeight: '700', color: colors.textPrimary }]}>Generando reporte PDF...</Text>
+            <Text style={[typography.caption, { color: colors.textMuted, textAlign: 'center' }]}>Esto puede tomar unos segundos</Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

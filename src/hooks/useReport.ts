@@ -51,6 +51,24 @@ export function useReport() {
         .eq('project_id', project.id)
         .order('visited_at', { ascending: false });
 
+      const { data: budgetData } = await supabase
+        .from('budget_categories')
+        .select('name, budgeted, spent')
+        .eq('project_id', project.id)
+        .order('created_at');
+
+      const { data: risksData } = await supabase
+        .from('project_risks')
+        .select('name, responsible, status, probability, impact, mitigation')
+        .eq('project_id', project.id)
+        .order('created_at');
+
+      const { data: evmData } = await supabase
+        .from('evm_weekly')
+        .select('week_number, week_date, pv, ev, ac')
+        .eq('project_id', project.id)
+        .order('week_number');
+
       const html = generateReportHTML({
         project,
         tasks: tasks.filter(t => t.project_id === project.id),
@@ -58,6 +76,9 @@ export function useReport() {
         documents: (docsData ?? []) as Document[],
         annotations: (annotationsData ?? []) as PlanAnnotation[],
         siteLog: (siteLogData ?? []) as any[],
+        budgetCategories: (budgetData ?? []) as any[],
+        risks: (risksData ?? []) as any[],
+        evmWeeks: (evmData ?? []) as any[],
       });
 
       const { uri: tempUri } = await Promise.race([
