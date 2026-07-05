@@ -199,63 +199,50 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Accesos rápidos al proyecto activo: Planos, Documentos y Bitácora */}
+        {/* Accesos rápidos al proyecto activo: fila 1 */}
         {activeProject && (
-          <View style={{ flexDirection: 'row', gap: Spacing.md }}>
-            <TouchableOpacity
-              onPress={() => router.push(`/plans/${activeProject.id}` as never)}
-              style={{
-                flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg,
-                borderWidth: 0.5, borderColor: colors.border,
-                padding: Spacing.md, alignItems: 'center', gap: 6,
-              }}
-            >
-              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="map-outline" size={18} color={colors.primary} />
-              </View>
-              <Text style={[typography.bodySmall, { fontWeight: '600' }]}>Planos</Text>
-            </TouchableOpacity>
+          <View style={{ gap: Spacing.sm }}>
+            <View style={{ flexDirection: 'row', gap: Spacing.md }}>
+              <TouchableOpacity
+                onPress={() => router.push(`/plans/${activeProject.id}` as never)}
+                style={{ flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md, alignItems: 'center', gap: 6 }}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="map-outline" size={18} color={colors.primary} />
+                </View>
+                <Text style={[typography.bodySmall, { fontWeight: '600' }]}>Planos</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => router.push(`/documents/${activeProject.id}` as never)}
-              style={{
-                flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg,
-                borderWidth: 0.5, borderColor: colors.border,
-                padding: Spacing.md, alignItems: 'center', gap: 6,
-              }}
-            >
-              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="folder-outline" size={18} color={colors.primary} />
-              </View>
-              <Text style={[typography.bodySmall, { fontWeight: '600' }]}>Documentos</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push(`/documents/${activeProject.id}` as never)}
+                style={{ flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md, alignItems: 'center', gap: 6 }}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="folder-outline" size={18} color={colors.primary} />
+                </View>
+                <Text style={[typography.bodySmall, { fontWeight: '600' }]}>Docs</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => router.push({ pathname: '/sitelog/[projectId]', params: { projectId: activeProject.id, projectName: activeProject.name } } as never)}
-              style={{
-                flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg,
-                borderWidth: 0.5, borderColor: colors.border,
-                padding: Spacing.md, alignItems: 'center', gap: 6,
-              }}
-            >
-              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="book-outline" size={18} color={colors.primary} />
-              </View>
-              <Text style={[typography.bodySmall, { fontWeight: '600' }]}>Bitácora</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push({ pathname: '/budget/[projectId]', params: { projectId: activeProject.id, projectName: activeProject.name } } as never)}
-              style={{
-                flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg,
-                borderWidth: 0.5, borderColor: colors.border,
-                padding: Spacing.md, alignItems: 'center', gap: 6,
-              }}
-            >
-              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="wallet-outline" size={18} color={colors.primary} />
-              </View>
-              <Text style={[typography.bodySmall, { fontWeight: '600' }]}>Presupuesto</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push({ pathname: '/sitelog/[projectId]', params: { projectId: activeProject.id, projectName: activeProject.name } } as never)}
+                style={{ flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md, alignItems: 'center', gap: 6 }}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="book-outline" size={18} color={colors.primary} />
+                </View>
+                <Text style={[typography.bodySmall, { fontWeight: '600' }]}>Bitácora</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => router.push({ pathname: '/budget/[projectId]', params: { projectId: activeProject.id, projectName: activeProject.name } } as never)}
+                style={{ flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md, alignItems: 'center', gap: 6 }}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="wallet-outline" size={18} color={colors.primary} />
+                </View>
+                <Text style={[typography.bodySmall, { fontWeight: '600' }]}>Budget</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
