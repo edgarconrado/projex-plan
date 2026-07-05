@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useProjects } from '../../src/hooks/useProjects';
 import { useProjectStore } from '../../src/stores';
+import { useAuth } from '../../src/lib/AuthContext';
 import { useTasks } from '../../src/hooks/useTasks';
 import { useReport } from '../../src/hooks/useReport';
 import { ProjectCard } from '../../src/components/tasks/ProjectCard';
@@ -27,6 +28,7 @@ const STATUS_FILTERS: { value: ProjectStatus | 'all'; label: string }[] = [
 
 export default function ProjectsScreen() {
   const { colors, typography } = useTheme();
+  const { user } = useAuth();
   const { isOnline } = useNetworkStatus();
   const { projects, isLoading, fetchProjects, createProject, updateProject, deleteProject } = useProjects();
   const { activeProjectId, setActiveProjectId } = useProjectStore();
@@ -55,7 +57,38 @@ export default function ProjectsScreen() {
     return matchesSearch && matchesStatus;
   });
 
+  const handleLeave = (project: Project) => {
+    Alert.alert(
+      'Dejar proyecto',
+      `¿Estás seguro de que quieres salir de "${project.name}"?\n\nYa no podrás ver este proyecto hasta que alguien te vuelva a invitar.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Dejar proyecto',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { supabase } = await import('../../src/lib/supabase');
+              await supabase
+                .from('project_members')
+                .delete()
+                .eq('project_id', project.id)
+                .eq('user_id', user?.id);
+              await fetchProjects();
+            } catch {
+              Alert.alert('Error', 'No se pudo salir del proyecto. Intenta de nuevo.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleDelete = (project: Project) => {
+    if (project.created_by !== user?.id) {
+      Alert.alert('Sin permiso', 'Solo el creador del proyecto puede eliminarlo.');
+      return;
+    }
     Alert.alert('Eliminar proyecto', `¿Estás seguro de eliminar "${project.name}"?`, [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -182,13 +215,23 @@ export default function ProjectsScreen() {
                     <Ionicons name="document-text-outline" size={13} color={colors.textMuted} />
                     <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>PDF</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleDelete(item)}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.dangerMuted, borderWidth: 0.5, borderColor: colors.danger }}
-                  >
-                    <Ionicons name="trash-outline" size={13} color={colors.danger} />
-                    <Text style={{ fontSize: 12, fontWeight: '500', color: colors.danger }}>Eliminar</Text>
-                  </TouchableOpacity>
+                  {item.created_by === user?.id ? (
+                    <TouchableOpacity
+                      onPress={() => handleDelete(item)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.dangerMuted, borderWidth: 0.5, borderColor: colors.danger }}
+                    >
+                      <Ionicons name="trash-outline" size={13} color={colors.danger} />
+                      <Text style={{ fontSize: 12, fontWeight: '500', color: colors.danger }}>Eliminar</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      onPress={() => handleLeave(item)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.surfaceSecondary, borderWidth: 0.5, borderColor: colors.textMuted }}
+                    >
+                      <Ionicons name="log-out-outline" size={13} color={colors.textMuted} />
+                      <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>Salir</Text>
+                    </TouchableOpacity>
+                  )}
                 </ScrollView>
               </View>
             );

@@ -46,8 +46,8 @@ export default function DashboardScreen() {
   const { unreadCount: unreadNotifCount } = useNotifications();
   const { generateReport, isGenerating } = useReport();
   const { projects, fetchProjects } = useProjects();
-  const { tasks, fetchTasks } = useTasks();
   const { activeProjectId, setActiveProjectId } = useProjectStore();
+  const { tasks, fetchTasks } = useTasks(activeProjectId ?? undefined);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => { fetchProjects(); fetchTasks(); }, [fetchProjects, fetchTasks]);
@@ -280,6 +280,16 @@ export default function DashboardScreen() {
                 <Ionicons name="bar-chart-outline" size={18} color="#3B82F6" />
               </View>
               <Text style={[typography.bodySmall, { fontWeight: '600' }]}>Gantt</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/team/[projectId]', params: { projectId: activeProject.id, projectName: activeProject.name } } as never)}
+              style={{ flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md, alignItems: 'center', gap: 6 }}
+            >
+              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#8B5CF615', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="people-outline" size={18} color="#8B5CF6" />
+              </View>
+              <Text style={[typography.bodySmall, { fontWeight: '600' }]}>Equipo</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
