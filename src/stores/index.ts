@@ -107,14 +107,17 @@ export const useTaskStore = create<TaskStore>((set) => ({
 interface UIStore {
   notifications: Notification[];
   unreadCount: number;
+  chatUnreadCount: number;
   setNotifications: (n: Notification[]) => void;
   addNotification: (n: Notification) => void;
   markAllRead: () => void;
+  setChatUnread: (count: number) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
   notifications: [],
   unreadCount: 0,
+  chatUnreadCount: 0,
   setNotifications: (notifications) => set({
     notifications,
     unreadCount: notifications.filter((n) => !n.is_read).length,
@@ -127,4 +130,5 @@ export const useUIStore = create<UIStore>((set) => ({
     notifications: state.notifications.map((n) => ({ ...n, is_read: true })),
     unreadCount: 0,
   })),
+  setChatUnread: (count) => set({ chatUnreadCount: count }),
 }));

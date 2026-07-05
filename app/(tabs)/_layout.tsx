@@ -42,7 +42,7 @@ function WarmUpBanner() {
 
 export default function TabsLayout() {
   const { isAuthenticated, isLoading, isWarmingUp } = useAuth();
-  const unreadChatCount = useUIStore((s) => s.unreadCount);
+  const unreadChatCount = useUIStore((s) => s.chatUnreadCount);
   const { isOnline, pendingCount } = useOfflineSync({
     onSyncComplete: (synced) => {
       Alert.alert('Sincronizado', `${synced} cambio${synced !== 1 ? 's' : ''} sincronizado${synced !== 1 ? 's' : ''} correctamente.`);

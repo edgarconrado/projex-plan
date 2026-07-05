@@ -28,8 +28,8 @@ const ROLES: { value: InvitationRole; label: string; desc: string }[] = [
 const STATUS_COLORS = { pending: '#F59E0B', accepted: '#22C55E', expired: '#EF4444' };
 const STATUS_LABELS = { pending: 'Pendiente', accepted: 'Aceptada', expired: 'Expirada' };
 
-// Roles que pueden invitar
-const CAN_INVITE = ['admin', 'project_manager', 'supervisor'];
+// Solo admin y project_manager pueden invitar
+const CAN_INVITE = ['admin', 'project_manager'];
 
 export default function TeamScreen() {
   const { projectId, projectName } = useLocalSearchParams<{ projectId: string; projectName: string }>();
@@ -71,6 +71,11 @@ export default function TeamScreen() {
   };
 
   const canInvite = userProjectRole ? CAN_INVITE.includes(userProjectRole) : false;
+
+  // Project Manager no puede asignar rol Admin
+  const availableRoles = ROLES.filter(r =>
+    userProjectRole === 'admin' ? true : r.value !== 'admin'
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -171,7 +176,7 @@ export default function TeamScreen() {
             <View style={{ alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.sm }}>
               <Ionicons name="mail-outline" size={36} color={colors.textMuted} />
               <Text style={[typography.bodySmall, { color: colors.textMuted, textAlign: 'center' }]}>
-                {canInvite ? 'Toca "Invitar" para agregar personas al proyecto' : 'No tienes permisos para invitar personas'}
+                {canInvite ? 'Toca "Invitar" para agregar personas al proyecto' : 'Solo Administradores y Project Managers pueden invitar personas'}
               </Text>
             </View>
           ) : (
@@ -235,7 +240,7 @@ export default function TeamScreen() {
 
                 <Text style={[typography.label, { color: colors.textSecondary, marginBottom: 10 }]}>Rol en el proyecto *</Text>
                 <View style={{ gap: Spacing.sm, marginBottom: Spacing.lg }}>
-                  {ROLES.map(r => (
+                  {availableRoles.map(r => (
                     <TouchableOpacity key={r.value} onPress={() => setSelectedRole(r.value)}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md, backgroundColor: selectedRole === r.value ? colors.primaryMuted : colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 1, borderColor: selectedRole === r.value ? colors.primary : colors.border, padding: Spacing.md }}>
                       <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: selectedRole === r.value ? colors.primary : colors.border, alignItems: 'center', justifyContent: 'center' }}>

@@ -33,10 +33,13 @@ export default function ConversationScreen() {
 
   const handleSend = async () => {
     if (!text.trim() || sending) return;
+    const messageText = text.trim();
+    setText(''); // Limpiar inmediatamente para feedback visual
     setSending(true);
     try {
-      await sendMessage(text);
-      setText('');
+      await sendMessage(messageText);
+    } catch {
+      setText(messageText); // Restaurar si falla
     } finally {
       setSending(false);
     }

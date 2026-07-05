@@ -13,31 +13,41 @@ import { Conversation } from '../../src/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '../../src/lib/AuthContext';
+import { useProjectStore } from '../../src/stores';
+import { supabase } from '../../src/lib/supabase';
+import { saveNotification } from '../../src/lib/notifications';
 
-function ConversationItem({ conv, currentUserId, onPress, colors, typography }: {
-  conv: Conversation; currentUserId: string; onPress: () => void;
+function ConversationItem({ conv, currentUserId, onPress, colors, typography, isUnread }: {
+  conv: Conversation; currentUserId: string; onPress: () => void; isUnread: boolean;
   colors: ReturnType<typeof useTheme>['colors']; typography: ReturnType<typeof useTheme>['typography'];
 }) {
   const otherParticipants = conv.participants?.filter((p) => p.user_id !== currentUserId) ?? [];
   const name = conv.name ?? otherParticipants.map((p) => p.profile?.full_name?.split(' ')[0]).join(', ') ?? 'Conversación';
-  const lastMsg = conv.last_message;
+  const lastMsg = Array.isArray((conv as any).messages) && (conv as any).messages.length > 0
+    ? [...(conv as any).messages].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+    : Array.isArray(conv.last_message)
+      ? conv.last_message.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+      : conv.last_message;
   const time = lastMsg ? format(new Date(lastMsg.created_at), 'HH:mm', { locale: es }) : '';
   const isOnline = otherParticipants.some((p) => p.profile?.is_online);
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: colors.border }}>
+      style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: colors.border, backgroundColor: isUnread ? `${colors.primary}10` : 'transparent' }}>
       <View>
         <Avatar name={name} imageUrl={otherParticipants.length === 1 ? otherParticipants[0].profile?.avatar_url : null} size={46} />
         {isOnline && <View style={{ position: 'absolute', bottom: 0, right: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.success, borderWidth: 2, borderColor: colors.background }} />}
       </View>
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
-          <Text style={[typography.body, { fontWeight: '600' }]} numberOfLines={1}>{name}</Text>
-          {time ? <Text style={[typography.caption, { color: colors.textMuted }]}>{time}</Text> : null}
+          <Text style={[typography.body, { fontWeight: isUnread ? '700' : '600' }]} numberOfLines={1}>{name}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {time ? <Text style={[typography.caption, { color: colors.textMuted }]}>{time}</Text> : null}
+            {isUnread && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary }} />}
+          </View>
         </View>
         {lastMsg
-          ? <Text style={[typography.bodySmall, { color: colors.textMuted }]} numberOfLines={1}>{lastMsg.message}</Text>
+          ? <Text style={[typography.bodySmall, { color: isUnread ? colors.textPrimary : colors.textMuted, fontWeight: isUnread ? '500' : '400' }]} numberOfLines={1}>{lastMsg.message}</Text>
           : <Text style={[typography.bodySmall, { color: colors.textMuted, fontStyle: 'italic' }]}>Sin mensajes aún</Text>
         }
       </View>
@@ -50,7 +60,8 @@ export default function ChatScreen() {
   const { colors, typography } = useTheme();
   const { isOnline } = useNetworkStatus();
   const { user } = useAuth();
-  const { conversations, isLoading, fetchConversations, createConversation } = useChat();
+  const { activeProjectId } = useProjectStore();
+  const { conversations, isLoading, fetchConversations, createConversation, isConvUnread } = useChat(activeProjectId ?? undefined);
   const [refreshing, setRefreshing] = useState(false);
   const [newModalVisible, setNewModalVisible] = useState(false);
   const [newName, setNewName] = useState('');
@@ -68,7 +79,38 @@ export default function ChatScreen() {
     if (!newName.trim()) return;
     setCreating(true);
     try {
-      const conv = await createConversation(newName.trim(), []);
+      // Obtener todos los miembros del proyecto activo
+      let memberIds: string[] = [];
+      if (activeProjectId) {
+        const { data: members } = await supabase
+          .from('project_members')
+          .select('user_id')
+          .eq('project_id', activeProjectId);
+        memberIds = (members ?? []).map((m: any) => m.user_id).filter((id: string) => id !== user?.id);
+      }
+
+      const conv = await createConversation(newName.trim(), memberIds, activeProjectId ?? undefined);
+
+      // Notificar a los demás miembros
+      if (memberIds.length > 0 && user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single();
+        const creatorName = profile?.full_name ?? 'Alguien';
+        for (const memberId of memberIds) {
+          await saveNotification({
+            userId: memberId,
+            type: 'message_received',
+            title: 'Nuevo chat creado',
+            description: `${creatorName} creó el chat "${newName.trim()}"`,
+            resourceType: 'conversation',
+            resourceId: conv.id,
+          });
+        }
+      }
+
       setNewModalVisible(false);
       setNewName('');
       router.push({ pathname: '/conversation/[id]', params: { id: conv.id, name: conv.name ?? newName } } as never);
@@ -97,12 +139,16 @@ export default function ChatScreen() {
           ListEmptyComponent={
             <EmptyState
               icon={<Ionicons name="chatbubbles-outline" size={48} color={colors.textMuted} />}
-              title="Sin conversaciones"
-              subtitle="Crea una nueva conversación tocando el botón +"
+              title={activeProjectId ? 'Sin conversaciones' : 'Selecciona un proyecto'}
+              subtitle={activeProjectId
+                ? 'Crea una nueva conversación tocando el botón +'
+                : 'Elige un proyecto activo desde el Dashboard para ver sus chats'
+              }
             />
           }
           renderItem={({ item }) => (
             <ConversationItem conv={item} currentUserId={user?.id ?? ''} colors={colors} typography={typography}
+              isUnread={isConvUnread(item)}
               onPress={() => {
                 const others = item.participants?.filter((p) => p.user_id !== user?.id) ?? [];
                 const name = item.name ?? others.map((p) => p.profile?.full_name?.split(' ')[0]).join(', ') ?? 'Conversación';
@@ -114,7 +160,7 @@ export default function ChatScreen() {
       )}
 
       <Modal visible={newModalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setNewModalVisible(false)}>
-        <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: colors.border }}>
             <TouchableOpacity onPress={() => setNewModalVisible(false)}><Ionicons name="close" size={24} color={colors.textSecondary} /></TouchableOpacity>
             <Text style={typography.h4}>Nueva conversación</Text>
@@ -125,7 +171,7 @@ export default function ChatScreen() {
               leftIcon={<Ionicons name="chatbubble-outline" size={18} color={colors.textMuted} />} />
             <Button label="Crear conversación" onPress={handleCreate} loading={creating} size="lg" />
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
     </SafeAreaView>
   );
