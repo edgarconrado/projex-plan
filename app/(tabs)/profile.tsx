@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, Switch, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/lib/AuthContext';
@@ -194,9 +195,11 @@ export default function ProfileScreen() {
         <View style={{ backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, paddingHorizontal: Spacing.lg }}>
           <SettingRow colors={colors} icon="information-circle-outline" label="Versión" value="1.0.0" />
           <Divider style={{ marginVertical: 0 }} />
-          <SettingRow colors={colors} icon="shield-checkmark-outline" label="Privacidad" onPress={() => Alert.alert('Privacidad', 'Tus datos están protegidos con Supabase RLS.')} />
-          <Divider style={{ marginVertical: 0 }} />
           <SettingRow colors={colors} icon="help-circle-outline" label="Soporte" onPress={() => Alert.alert('Soporte', 'Contacta a soporte@projexplan.com')} />
+          <Divider style={{ marginVertical: 0 }} />
+          <SettingRow colors={colors} icon="shield-checkmark-outline" label="Aviso de Privacidad" onPress={() => router.push({ pathname: '/legal', params: { type: 'privacy' } } as never)} />
+          <Divider style={{ marginVertical: 0 }} />
+          <SettingRow colors={colors} icon="document-text-outline" label="Términos y Condiciones" onPress={() => router.push({ pathname: '/legal', params: { type: 'terms' } } as never)} />
         </View>
 
         <TouchableOpacity onPress={handleSignOut}

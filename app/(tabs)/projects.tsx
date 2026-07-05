@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useProjects } from '../../src/hooks/useProjects';
 import { useProjectStore } from '../../src/stores';
 import { useAuth } from '../../src/lib/AuthContext';
+import { supabase } from '../../src/lib/supabase';
 import { useTasks } from '../../src/hooks/useTasks';
 import { useReport } from '../../src/hooks/useReport';
 import { ProjectCard } from '../../src/components/tasks/ProjectCard';
@@ -39,8 +40,27 @@ export default function ProjectsScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [userRoles, setUserRoles] = useState<Record<string, string>>({});
 
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
+
+  // Cargar los roles del usuario en todos sus proyectos
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('project_members')
+      .select('project_id, role')
+      .eq('user_id', user.id)
+      .then(({ data }) => {
+        const roles: Record<string, string> = {};
+        (data ?? []).forEach((m: any) => { roles[m.project_id] = m.role; });
+        setUserRoles(roles);
+      });
+  }, [user?.id]);
+
+  const canGeneratePDF = (project: Project) =>
+    project.created_by === user?.id ||
+    ['admin', 'project_manager', 'supervisor'].includes(userRoles[project.id] ?? '');
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -207,14 +227,16 @@ export default function ProjectsScreen() {
                     <Ionicons name="pencil-outline" size={13} color={colors.textMuted} />
                     <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>Editar</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => generateReport(item, tasks)}
-                    disabled={isGenerating}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.surfaceSecondary, borderWidth: 0.5, borderColor: colors.border, opacity: isGenerating ? 0.6 : 1 }}
-                  >
-                    <Ionicons name="document-text-outline" size={13} color={colors.textMuted} />
-                    <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>PDF</Text>
-                  </TouchableOpacity>
+                  {canGeneratePDF(item) && (
+                    <TouchableOpacity
+                      onPress={() => generateReport(item, tasks)}
+                      disabled={isGenerating}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.surfaceSecondary, borderWidth: 0.5, borderColor: colors.border, opacity: isGenerating ? 0.6 : 1 }}
+                    >
+                      <Ionicons name="document-text-outline" size={13} color={colors.textMuted} />
+                      <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>PDF</Text>
+                    </TouchableOpacity>
+                  )}
                   {item.created_by === user?.id ? (
                     <TouchableOpacity
                       onPress={() => handleDelete(item)}

@@ -10,6 +10,7 @@ import { useNotifications } from '../../src/hooks/useNotifications';
 import { useReport } from '../../src/hooks/useReport';
 import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
 import { useProjectStore } from '../../src/stores';
+import { supabase } from '../../src/lib/supabase';
 import { Spacing, Radius, getStatusColor, getStatusLabel, getPriorityColor } from '../../src/lib/theme';
 import { useTheme } from '../../src/lib/ThemeContext';
 import { ProgressBar, Avatar } from '../../src/components/ui';
@@ -41,7 +42,7 @@ function SectionCard({ children, colors }: { children: React.ReactNode; colors: 
 
 export default function DashboardScreen() {
   const { colors, typography } = useTheme();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const { isOnline } = useNetworkStatus();
   const { unreadCount: unreadNotifCount } = useNotifications();
   const { generateReport, isGenerating } = useReport();
@@ -49,8 +50,20 @@ export default function DashboardScreen() {
   const { activeProjectId, setActiveProjectId } = useProjectStore();
   const { tasks, fetchTasks } = useTasks(activeProjectId ?? undefined);
   const [refreshing, setRefreshing] = useState(false);
+  const [userProjectRole, setUserProjectRole] = useState<string | null>(null);
 
   useEffect(() => { fetchProjects(); fetchTasks(); }, [fetchProjects, fetchTasks]);
+
+  useEffect(() => {
+    if (!activeProjectId || !user) { setUserProjectRole(null); return; }
+    supabase
+      .from('project_members')
+      .select('role')
+      .eq('project_id', activeProjectId)
+      .eq('user_id', user.id)
+      .single()
+      .then(({ data }) => setUserProjectRole(data?.role ?? null));
+  }, [activeProjectId, user?.id]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -60,6 +73,10 @@ export default function DashboardScreen() {
 
   const activeProject = projects.find((p) => p.id === activeProjectId);
   const recentProjects = [...projects].slice(0, 4);
+
+  // Solo Admin, Project Manager y Supervisor pueden generar PDF
+  const canGeneratePDF = activeProject?.created_by === user?.id ||
+    ['admin', 'project_manager', 'supervisor'].includes(userProjectRole ?? '');
 
   // Tareas SOLO del proyecto activo
   const projectTasks = activeProjectId ? tasks.filter((t) => t.project_id === activeProjectId) : [];
@@ -164,23 +181,25 @@ export default function DashboardScreen() {
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => generateReport(activeProject, tasks)}
-              disabled={isGenerating}
-              style={{
-                backgroundColor: colors.primary, borderRadius: Radius.md,
-                paddingHorizontal: 10, paddingVertical: 8,
-                flexDirection: 'row', alignItems: 'center', gap: 4,
-                opacity: isGenerating ? 0.6 : 1,
-              }}
-            >
-              {isGenerating
-                ? <Ionicons name="hourglass-outline" size={14} color={colors.textInverse} />
-                : <Ionicons name="document-text-outline" size={14} color={colors.textInverse} />}
-              <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textInverse }}>
-                {isGenerating ? 'PDF...' : 'PDF'}
-              </Text>
-            </TouchableOpacity>
+            {canGeneratePDF && (
+              <TouchableOpacity
+                onPress={() => generateReport(activeProject, tasks)}
+                disabled={isGenerating}
+                style={{
+                  backgroundColor: colors.primary, borderRadius: Radius.md,
+                  paddingHorizontal: 10, paddingVertical: 8,
+                  flexDirection: 'row', alignItems: 'center', gap: 4,
+                  opacity: isGenerating ? 0.6 : 1,
+                }}
+              >
+                {isGenerating
+                  ? <Ionicons name="hourglass-outline" size={14} color={colors.textInverse} />
+                  : <Ionicons name="document-text-outline" size={14} color={colors.textInverse} />}
+                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textInverse }}>
+                  {isGenerating ? 'PDF...' : 'PDF'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <TouchableOpacity
