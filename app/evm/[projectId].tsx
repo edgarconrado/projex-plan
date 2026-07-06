@@ -11,7 +11,10 @@ import { format } from 'date-fns';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../../src/lib/ThemeContext';
 import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
+import { useProjectPermissions } from '../../src/hooks/useProjectPermissions';
 import { useEVM, EVMWeek } from '../../src/hooks/useEVM';
+import { useSubscription } from '../../src/hooks/useSubscription';
+import { PaywallModal } from '../../src/components/ui/PaywallModal';
 import { Spacing, Radius } from '../../src/lib/theme';
 
 const CURRENCY = (n: number) => n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 });
@@ -20,6 +23,8 @@ export default function EVMScreen() {
   const { projectId, projectName } = useLocalSearchParams<{ projectId: string; projectName: string }>();
   const { colors, typography } = useTheme();
   const { isOnline } = useNetworkStatus();
+  const sub = useSubscription();
+  const perms = useProjectPermissions(projectId, null);
   const { weeks, isLoading, fetchWeeks, upsertWeek, deleteWeek, cpi, spi } = useEVM(projectId);
 
   const [showForm, setShowForm] = useState(false);
@@ -87,9 +92,11 @@ export default function EVMScreen() {
           <Text style={typography.h4}>EVM — Valor Ganado</Text>
           <Text style={[typography.caption, { color: colors.textMuted }]} numberOfLines={1}>{projectName ?? 'Proyecto'}</Text>
         </View>
-        <TouchableOpacity onPress={openNew} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name="add" size={24} color={colors.textInverse} />
-        </TouchableOpacity>
+        {perms.canCreateEVM && (
+          <TouchableOpacity onPress={openNew} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="add" size={24} color={colors.textInverse} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <FlatList
@@ -210,6 +217,12 @@ export default function EVMScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      <PaywallModal
+        visible={!sub.isLoading && !sub.canUseEVM}
+        onClose={() => router.back()}
+        feature="EVM — Valor Ganado"
+        description="Mide el desempeño real de tu proyecto con indicadores CPI y SPI semana a semana."
+      />
     </SafeAreaView>
   );
 }

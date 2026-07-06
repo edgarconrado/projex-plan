@@ -12,6 +12,7 @@ import { format, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useTheme } from '../../src/lib/ThemeContext';
 import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
+import { useProjectPermissions } from '../../src/hooks/useProjectPermissions';
 import { useSiteLog } from '../../src/hooks/useSiteLog';
 import { Avatar } from '../../src/components/ui';
 import { Spacing, Radius } from '../../src/lib/theme';
@@ -27,6 +28,7 @@ export default function SiteLogScreen() {
   const { projectId, projectName } = useLocalSearchParams<{ projectId: string; projectName: string }>();
   const { colors, typography } = useTheme();
   const { isOnline } = useNetworkStatus();
+  const perms = useProjectPermissions(projectId, null);
   const { entries, isLoading, fetchEntries, addEntry, deleteEntry, updateEntry } = useSiteLog(projectId);
 
   const [showForm, setShowForm] = useState(false);
@@ -132,12 +134,14 @@ export default function SiteLogScreen() {
             {projectName ?? 'Proyecto'}
           </Text>
         </View>
-        <TouchableOpacity
+        {perms.canCreateSiteLog && (
+          <TouchableOpacity
           onPress={() => setShowForm(true)}
           style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
         >
           <Ionicons name="add" size={24} color={colors.textInverse} />
         </TouchableOpacity>
+        )}
       </View>
 
       <FlatList

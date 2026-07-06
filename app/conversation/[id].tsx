@@ -11,12 +11,14 @@ import { ChatBubble } from '../../src/components/chat/ChatBubble';
 import { Spacing, Radius } from '../../src/lib/theme';
 import { useTheme } from '../../src/lib/ThemeContext';
 import { useAuth } from '../../src/lib/AuthContext';
+import { useProjectPermissions } from '../../src/hooks/useProjectPermissions';
 
 export default function ConversationScreen() {
   const { colors, typography } = useTheme();
-  const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
+  const { id, name, projectId } = useLocalSearchParams<{ id: string; name: string; projectId?: string }>();
   const { user } = useAuth();
   const { messages, isLoading, sendMessage, markAsRead } = useMessages(id ?? '');
+  const perms = useProjectPermissions(projectId ?? null, null);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const listRef = useRef<FlatList>(null);
@@ -95,41 +97,47 @@ export default function ConversationScreen() {
           }
         />
 
-        {/* Input */}
-        <View style={{
-          flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm,
-          padding: Spacing.md, borderTopWidth: 0.5, borderTopColor: colors.border,
-          backgroundColor: colors.surface,
-        }}>
-          <TextInput
-            value={text}
-            onChangeText={setText}
-            placeholder="Escribe un mensaje..."
-            placeholderTextColor={colors.textMuted}
-            multiline
-            style={{
-              flex: 1, backgroundColor: colors.surfaceSecondary,
-              borderRadius: Radius.xl, borderWidth: 0.5, borderColor: colors.border,
-              paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-              color: colors.textPrimary, fontSize: 15, maxHeight: 120,
-            }}
-          />
-          <TouchableOpacity
-            onPress={handleSend}
-            disabled={!text.trim() || sending}
-            style={{
-              width: 40, height: 40, borderRadius: 20,
-              backgroundColor: text.trim() ? colors.primary : colors.surfaceSecondary,
-              alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <Ionicons
-              name="send"
-              size={18}
+        {/* Input — oculto para Observadores */}
+        {perms.canChat ? (
+          <View style={{
+            flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm,
+            padding: Spacing.md, borderTopWidth: 0.5, borderTopColor: colors.border,
+            backgroundColor: colors.surface,
+          }}>
+            <TextInput
+              value={text}
+              onChangeText={setText}
+              placeholder="Escribe un mensaje..."
+              placeholderTextColor={colors.textMuted}
+              multiline
+              style={{
+                flex: 1, backgroundColor: colors.surfaceSecondary,
+                borderRadius: Radius.xl, borderWidth: 0.5, borderColor: colors.border,
+                paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+                color: colors.textPrimary, fontSize: 15, maxHeight: 120,
+              }}
+            />
+            <TouchableOpacity
+              onPress={handleSend}
+              disabled={!text.trim() || sending}
+              style={{
+                width: 40, height: 40, borderRadius: 20,
+                backgroundColor: text.trim() ? colors.primary : colors.surfaceSecondary,
+                alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Ionicons
+                name="send"
+                size={18}
               color={text.trim() ? colors.textInverse : colors.textMuted}
             />
           </TouchableOpacity>
         </View>
+        ) : (
+          <View style={{ padding: Spacing.md, borderTopWidth: 0.5, borderTopColor: colors.border, backgroundColor: colors.surfaceSecondary, alignItems: 'center' }}>
+            <Text style={[typography.caption, { color: colors.textMuted }]}>Solo tienes permisos de lectura en este chat</Text>
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

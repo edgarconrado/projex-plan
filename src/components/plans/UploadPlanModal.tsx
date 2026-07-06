@@ -21,11 +21,12 @@ interface UploadPlanModalProps {
     meta: { code: string; title: string; discipline: string; level: string; revision: string; scale?: string }
   ) => Promise<void>;
   uploadProgress: number;
+  onOpenMap?: () => void;
 }
 
 const DISCIPLINES = ['Arquitectura', 'Estructura', 'Instalaciones', 'Mecánica', 'Eléctrico', 'Civil', 'Otro'];
 
-export function UploadPlanModal({ visible, onClose, onUpload, uploadProgress }: UploadPlanModalProps) {
+export function UploadPlanModal({ visible, onClose, onUpload, uploadProgress, onOpenMap }: UploadPlanModalProps) {
   const { colors, typography } = useTheme();
   const [code, setCode] = useState('');
   const [title, setTitle] = useState('');
@@ -114,6 +115,19 @@ export function UploadPlanModal({ visible, onClose, onUpload, uploadProgress }: 
                 <Ionicons name="image-outline" size={24} color={colors.textMuted} />
                 <Text style={[typography.caption, { color: colors.textMuted }]}>Imagen</Text>
               </TouchableOpacity>
+              {onOpenMap && (
+                <TouchableOpacity
+                  onPress={() => {
+                    onClose();
+                    // Dar tiempo al modal para cerrarse antes de abrir el mapa
+                    setTimeout(() => onOpenMap(), 500);
+                  }}
+                  style={{ flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 1, borderColor: colors.primary, borderStyle: 'dashed', padding: Spacing.md, alignItems: 'center', gap: 6 }}
+                >
+                  <Ionicons name="map-outline" size={24} color={colors.primary} />
+                  <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>Mapa</Text>
+                </TouchableOpacity>
+              )}
             </View>
             {selectedFile && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: colors.successMuted, borderRadius: Radius.md, padding: Spacing.sm, borderWidth: 0.5, borderColor: colors.success }}>

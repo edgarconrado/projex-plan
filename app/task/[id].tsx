@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../src/lib/supabase';
 import { useTasks } from '../../src/hooks/useTasks';
 import { useAuth } from '../../src/lib/AuthContext';
+import { useProjectPermissions } from '../../src/hooks/useProjectPermissions';
 import { Spacing, Radius, getPriorityColor, getPriorityLabel, getStatusLabel } from '../../src/lib/theme';
 import { useTheme } from '../../src/lib/ThemeContext';
 import { Avatar, Badge, LoadingOverlay } from '../../src/components/ui';
@@ -41,8 +42,8 @@ export default function TaskDetailScreen() {
 
   const [task, setTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [userProjectRole, setUserProjectRole] = useState<string | null>(null);
   const [members, setMembers] = useState<Profile[]>([]);
+  const perms = useProjectPermissions(task?.project_id, task?.project?.id ? undefined : null);
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [title, setTitle] = useState('');
@@ -92,18 +93,6 @@ export default function TaskDetailScreen() {
           if (data) setMembers(data.map((m: any) => m.profile).filter(Boolean) as Profile[]);
         });
 
-      // Obtener el rol del usuario actual en este proyecto
-      if (user) {
-        supabase
-          .from('project_members')
-          .select('role')
-          .eq('project_id', task.project_id)
-          .eq('user_id', user.id)
-          .single()
-          .then(({ data }) => {
-            setUserProjectRole(data?.role ?? null);
-          });
-      }
     }
   }, [task?.project_id, user]);
 
@@ -185,10 +174,9 @@ export default function TaskDetailScreen() {
   const totalCount = task.checklist?.length ?? 0;
 
   // El viewer solo puede leer — no puede editar estado, prioridad, asignación ni campos
-  const canEdit = userProjectRole !== 'viewer' &&
-    (task.created_by === user?.id ||
-     task.assigned_to === user?.id ||
-     ['admin', 'project_manager', 'supervisor'].includes(userProjectRole ?? ''));
+  const canEdit = perms.canEditTask;
+  const canComplete = perms.canCompleteTask;
+  const canAssign = perms.canAssignTask;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -288,11 +276,11 @@ export default function TaskDetailScreen() {
           )}
 
           {/* Banner informativo para usuarios con rol viewer */}
-          {!canEdit && userProjectRole !== null && (
+          {(perms.isReadOnly || (!canEdit && !canComplete)) && perms.role !== null && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md }}>
               <Ionicons name="eye-outline" size={16} color={colors.textMuted} />
               <Text style={[typography.caption, { color: colors.textMuted, flex: 1 }]}>
-                Solo tienes permisos de lectura en este proyecto
+                perms.isReadOnly ? 'Solo tienes permisos de lectura en este proyecto' : 'No tienes permisos para editar esta tarea'
               </Text>
             </View>
           )}
@@ -304,10 +292,11 @@ export default function TaskDetailScreen() {
                 <TouchableOpacity
                   key={s.value}
                   onPress={() => {
-                    if (!canEdit) return;
                     if (s.value === 'completed') {
+                      if (!canComplete) return;
                       setShowEvidenceModal(true);
                     } else {
+                      if (!canEdit) return;
                       handleUpdate({ status: s.value, completed_at: null });
                     }
                   }}
@@ -331,7 +320,7 @@ export default function TaskDetailScreen() {
               {PRIORITIES.map((p) => (
                 <TouchableOpacity
                   key={p.value}
-                  onPress={() => canEdit && handleUpdate({ priority: p.value })}
+                  onPress={() => { if (!canEdit) return; handleUpdate({ priority: p.value }); }}
                   style={{
                     flex: 1, paddingVertical: 10, borderRadius: Radius.md, borderWidth: 1, alignItems: 'center',
                     borderColor: task.priority === p.value ? p.color : colors.border,
@@ -351,7 +340,7 @@ export default function TaskDetailScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <TouchableOpacity
-                  onPress={() => canEdit && handleUpdate({ assigned_to: null })}
+                  onPress={() => { if (!canAssign) return; handleUpdate({ assigned_to: null }); }}
                   style={{
                     paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.full, borderWidth: 1,
                     borderColor: !task.assigned_to ? colors.primary : colors.border,
@@ -365,7 +354,7 @@ export default function TaskDetailScreen() {
                 {members.map((m) => (
                   <TouchableOpacity
                     key={m.id}
-                    onPress={() => canEdit && handleUpdate({ assigned_to: m.id })}
+                    onPress={() => { if (!canAssign) return; handleUpdate({ assigned_to: m.id }); }}
                     style={{
                       flexDirection: 'row', alignItems: 'center', gap: 6,
                       paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.full, borderWidth: 1,

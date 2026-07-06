@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
-  Alert, RefreshControl,
+  Alert, RefreshControl, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -18,9 +18,13 @@ import { EmptyState, LoadingOverlay, Badge } from '../../src/components/ui';
 import { Plan } from '../../src/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
+import { useOfflineFiles } from '../../src/hooks/useOfflineFiles';
 
 export default function PlansScreen() {
   const { colors, typography } = useTheme();
+  const { isOnline } = useNetworkStatus();
+  const { downloading, progress, isCached, loadCachedIds, downloadFile, getLocalPath, removeFile } = useOfflineFiles();
   const { projectId, projectName } = useLocalSearchParams<{ projectId: string; projectName: string }>();
   const { plans, isLoading, uploadProgress, fetchPlans, uploadPlan, deletePlan, addAnnotation, deleteAnnotation, updateScale, uploadRevision, fetchRevisionHistory } = usePlans(projectId ?? '');
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
@@ -31,7 +35,7 @@ export default function PlansScreen() {
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [historyTargetPlan, setHistoryTargetPlan] = useState<Plan | null>(null);
 
-  useEffect(() => { fetchPlans(); }, [fetchPlans]);
+  useEffect(() => { fetchPlans(); loadCachedIds(); }, [fetchPlans, loadCachedIds]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -163,6 +167,7 @@ export default function PlansScreen() {
             setSelectedPlan(newPlan);
           }}
           uploadProgress={uploadProgress}
+          onOpenMap={() => setShowMapModal(true)}
         />
 
         <RevisionHistoryModal
@@ -172,6 +177,12 @@ export default function PlansScreen() {
           fetchHistory={fetchRevisionHistory}
           onSelectRevision={(revision) => setSelectedPlan(revision)}
           projectId={projectId ?? ''}
+        />
+        <MapPlanViewer
+          visible={showMapModal}
+          onClose={() => setShowMapModal(false)}
+          projectId={projectId ?? ''}
+          onPlanSaved={() => fetchPlans()}
         />
       </SafeAreaView>
     );
@@ -211,7 +222,18 @@ export default function PlansScreen() {
         }
         renderItem={({ item }) => (
           <TouchableOpacity
-            onPress={() => setSelectedPlan(item)}
+            onPress={async () => {
+              if (!isOnline) {
+                const localPath = await getLocalPath(item.id);
+                if (localPath) {
+                  setSelectedPlan({ ...item, file_url: localPath });
+                } else {
+                  Alert.alert('Sin conexión', 'Este plano no está disponible offline. Conéctate a internet o descárgalo primero tocando el ícono de nube.');
+                }
+                return;
+              }
+              setSelectedPlan(item);
+            }}
             style={{ backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: Spacing.sm }}>
@@ -264,6 +286,45 @@ export default function PlansScreen() {
                 <TouchableOpacity onPress={() => handleDelete(item)} style={{ padding: Spacing.xs }}>
                   <Ionicons name="trash-outline" size={16} color={colors.danger} />
                 </TouchableOpacity>
+                {/* Botón descarga offline */}
+                <TouchableOpacity
+                  onPress={async (e) => {
+                    e.stopPropagation?.();
+                    if (!item.file_url) return;
+                    if (isCached(item.id)) {
+                      Alert.alert(
+                        'Archivo disponible offline',
+                        '¿Quieres eliminar la copia local?',
+                        [
+                          { text: 'Cancelar', style: 'cancel' },
+                          { text: 'Eliminar', style: 'destructive', onPress: () => removeFile(item.id) },
+                        ]
+                      );
+                      return;
+                    }
+                    if (!isOnline) { Alert.alert('Sin conexión', 'Necesitas internet para descargar'); return; }
+                    const ext = item.file_type === 'pdf' ? 'pdf' : 'jpg';
+                    const result = await downloadFile(item.id, item.file_url, `${item.code}.${ext}`, item.file_type ?? 'image/jpeg');
+                    if (result) Alert.alert('✅ Descargado', 'El plano ya está disponible sin conexión');
+                    else Alert.alert('Error', 'No se pudo descargar el archivo');
+                  }}
+                  style={{ padding: Spacing.xs }}
+                >
+                  {downloading[item.id] ? (
+                    <View style={{ position: 'relative' }}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                      {progress[item.id] > 0 && (
+                        <Text style={{ fontSize: 8, color: colors.primary, textAlign: 'center' }}>{progress[item.id]}%</Text>
+                      )}
+                    </View>
+                  ) : (
+                    <Ionicons
+                      name={isCached(item.id) ? 'checkmark-circle' : 'cloud-download-outline'}
+                      size={16}
+                      color={isCached(item.id) ? colors.success : colors.textMuted}
+                    />
+                  )}
+                </TouchableOpacity>
               </View>
             </View>
           </TouchableOpacity>
@@ -275,6 +336,7 @@ export default function PlansScreen() {
         onClose={() => setUploadModalVisible(false)}
         onUpload={uploadPlan}
         uploadProgress={uploadProgress}
+        onOpenMap={() => setShowMapModal(true)}
       />
 
       <RevisionHistoryModal

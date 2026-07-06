@@ -17,9 +17,10 @@ interface NewRevisionModalProps {
   plan: Plan | null;
   onUpload: (fileUri: string, fileName: string, mimeType: string) => Promise<void>;
   uploadProgress: number;
+  onOpenMap?: () => void;
 }
 
-export function NewRevisionModal({ visible, onClose, plan, onUpload, uploadProgress }: NewRevisionModalProps) {
+export function NewRevisionModal({ visible, onClose, plan, onUpload, uploadProgress, onOpenMap }: NewRevisionModalProps) {
   const { colors, typography } = useTheme();
   const [selectedFile, setSelectedFile] = useState<{ uri: string; name: string; mimeType: string } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -96,6 +97,18 @@ export function NewRevisionModal({ visible, onClose, plan, onUpload, uploadProgr
               <Ionicons name="image-outline" size={22} color={colors.textMuted} />
               <Text style={[typography.caption, { color: colors.textMuted }]}>Galería</Text>
             </TouchableOpacity>
+            {onOpenMap && (
+              <TouchableOpacity
+                onPress={() => {
+                  onClose();
+                  setTimeout(() => onOpenMap(), 500);
+                }}
+                style={{ flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 1, borderColor: colors.primary, borderStyle: 'dashed', padding: Spacing.md, alignItems: 'center', gap: 6 }}
+              >
+                <Ionicons name="map-outline" size={22} color={colors.primary} />
+                <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>Mapa</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {selectedFile && (

@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, uploadFile, generateFileName, STORAGE_BUCKETS } from '../lib/supabase';
 import { Document } from '../types';
 import { useAuth } from '../lib/AuthContext';
@@ -23,6 +24,7 @@ export function useDocuments(projectId: string) {
   const fetchDocuments = useCallback(async () => {
     if (!projectId) return;
     setIsLoading(true);
+    const CACHE_KEY = `@projex:documents:${projectId}`;
     try {
       const { data, error } = await supabase
         .from('documents')
@@ -30,7 +32,14 @@ export function useDocuments(projectId: string) {
         .eq('project_id', projectId)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      setDocuments((data ?? []) as Document[]);
+      const docs = (data ?? []) as Document[];
+      setDocuments(docs);
+      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(docs));
+    } catch {
+      try {
+        const cached = await AsyncStorage.getItem(CACHE_KEY);
+        if (cached) setDocuments(JSON.parse(cached) as Document[]);
+      } catch {}
     } finally {
       setIsLoading(false);
     }

@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useTheme } from '../../src/lib/ThemeContext';
 import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
+import { useProjectPermissions } from '../../src/hooks/useProjectPermissions';
 import { useRisks, ProjectRisk, RiskLevel, RiskStatus, calcRisk, levelScore } from '../../src/hooks/useRisks';
 import { Spacing, Radius } from '../../src/lib/theme';
 
@@ -22,6 +23,7 @@ export default function RisksScreen() {
   const { projectId, projectName } = useLocalSearchParams<{ projectId: string; projectName: string }>();
   const { colors, typography } = useTheme();
   const { isOnline } = useNetworkStatus();
+  const perms = useProjectPermissions(projectId, null);
   const { risks, isLoading, fetchRisks, addRisk, updateRisk, deleteRisk } = useRisks(projectId);
 
   const [showForm, setShowForm] = useState(false);
@@ -118,9 +120,11 @@ export default function RisksScreen() {
           <Text style={typography.h4}>Registro de riesgos</Text>
           <Text style={[typography.caption, { color: colors.textMuted }]} numberOfLines={1}>{projectName ?? 'Proyecto'}</Text>
         </View>
-        <TouchableOpacity onPress={openNew} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name="add" size={24} color={colors.textInverse} />
-        </TouchableOpacity>
+        {perms.canCreateRisk && (
+          <TouchableOpacity onPress={openNew} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="add" size={24} color={colors.textInverse} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <FlatList

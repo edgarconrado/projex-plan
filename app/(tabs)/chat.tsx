@@ -113,7 +113,7 @@ export default function ChatScreen() {
 
       setNewModalVisible(false);
       setNewName('');
-      router.push({ pathname: '/conversation/[id]', params: { id: conv.id, name: conv.name ?? newName } } as never);
+      router.push({ pathname: '/conversation/[id]', params: { id: conv.id, name: conv.name ?? newName, projectId: activeProjectId ?? '' } } as never);
     } catch (e: unknown) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Error al crear');
     } finally { setCreating(false); }
@@ -152,7 +152,7 @@ export default function ChatScreen() {
               onPress={() => {
                 const others = item.participants?.filter((p) => p.user_id !== user?.id) ?? [];
                 const name = item.name ?? others.map((p) => p.profile?.full_name?.split(' ')[0]).join(', ') ?? 'Conversación';
-                router.push({ pathname: '/conversation/[id]', params: { id: item.id, name } } as never);
+                router.push({ pathname: '/conversation/[id]', params: { id: item.id, name, projectId: activeProjectId ?? '' } } as never);
               }}
             />
           )}

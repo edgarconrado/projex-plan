@@ -4,6 +4,8 @@ import {
   ActivityIndicator, Modal,
 } from 'react-native';
 import MapView, { MapType } from 'react-native-maps';
+import { useSubscription } from '../../hooks/useSubscription';
+import { PaywallModal } from '../ui/PaywallModal';
 import * as Location from 'expo-location';
 import * as MediaLibrary from 'expo-media-library';
 import { captureRef } from 'react-native-view-shot';
@@ -21,6 +23,7 @@ interface MapPlanViewerProps {
 }
 
 export function MapPlanViewer({ visible, onClose, projectId, onPlanSaved }: MapPlanViewerProps) {
+  const sub = useSubscription();
   const { colors, typography } = useTheme();
   const { user } = useAuth();
   const mapRef = useRef<MapView>(null);
@@ -41,12 +44,14 @@ export function MapPlanViewer({ visible, onClose, projectId, onPlanSaved }: MapP
         return;
       }
       const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      setRegion({
+      const newRegion = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
         latitudeDelta: 0.002,
         longitudeDelta: 0.002,
-      });
+      };
+      setRegion(newRegion);
+      mapRef.current?.animateToRegion(newRegion, 800);
     } catch {
       Alert.alert('Error', 'No se pudo obtener tu ubicación');
     } finally {
@@ -101,6 +106,18 @@ export function MapPlanViewer({ visible, onClose, projectId, onPlanSaved }: MapP
     setMapType((prev) => prev === 'satellite' ? 'standard' : 'satellite');
   };
 
+  // Solo bloquear si confirmado que es Free (no durante la carga)
+  if (!sub.isLoading && !sub.canUseMap && visible) {
+    return (
+      <PaywallModal
+        visible={visible}
+        onClose={onClose}
+        feature="Mapa de sitio"
+        description="Captura la ubicación exacta de tu obra y úsala como plano base para todo el equipo."
+      />
+    );
+  }
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: '#000' }}>
@@ -129,7 +146,6 @@ export function MapPlanViewer({ visible, onClose, projectId, onPlanSaved }: MapP
           mapType={mapType}
           region={region}
           onRegionChangeComplete={setRegion}
-          showsUserLocation
           showsMyLocationButton={false}
           showsCompass
           showsScale

@@ -6,6 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useProjects } from '../../src/hooks/useProjects';
 import { useProjectStore } from '../../src/stores';
 import { useAuth } from '../../src/lib/AuthContext';
+import { useSubscription } from '../../src/hooks/useSubscription';
+import { PaywallModal } from '../../src/components/ui/PaywallModal';
 import { supabase } from '../../src/lib/supabase';
 import { useTasks } from '../../src/hooks/useTasks';
 import { useReport } from '../../src/hooks/useReport';
@@ -30,6 +32,8 @@ const STATUS_FILTERS: { value: ProjectStatus | 'all'; label: string }[] = [
 export default function ProjectsScreen() {
   const { colors, typography } = useTheme();
   const { user } = useAuth();
+  const sub = useSubscription();
+  const [paywallFeature, setPaywallFeature] = useState<string | null>(null);
   const { isOnline } = useNetworkStatus();
   const { projects, isLoading, fetchProjects, createProject, updateProject, deleteProject } = useProjects();
   const { activeProjectId, setActiveProjectId } = useProjectStore();
@@ -229,7 +233,10 @@ export default function ProjectsScreen() {
                   </TouchableOpacity>
                   {canGeneratePDF(item) && (
                     <TouchableOpacity
-                      onPress={() => generateReport(item, tasks)}
+                      onPress={() => {
+                      if (!sub.canCreatePDF) { setPaywallFeature('Reportes PDF'); return; }
+                      generateReport(item, tasks);
+                    }}
                       disabled={isGenerating}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.surfaceSecondary, borderWidth: 0.5, borderColor: colors.border, opacity: isGenerating ? 0.6 : 1 }}
                     >
@@ -266,6 +273,12 @@ export default function ProjectsScreen() {
         onClose={() => { setModalVisible(false); setEditingProject(null); }}
         onSubmit={editingProject ? (dto) => updateProject(editingProject.id, dto) : createProject}
         initialData={editingProject}
+      />
+
+      <PaywallModal
+        visible={paywallFeature !== null}
+        onClose={() => setPaywallFeature(null)}
+        feature={paywallFeature ?? ''}
       />
 
       <Modal visible={isGenerating} transparent animationType="fade">

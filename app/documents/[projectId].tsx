@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
-  Alert, RefreshControl, Linking,
+  Alert, RefreshControl, Linking, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -15,6 +15,8 @@ import { EmptyState, LoadingOverlay, Avatar } from '../../src/components/ui';
 import { Document } from '../../src/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
+import { useOfflineFiles } from '../../src/hooks/useOfflineFiles';
 
 function formatFileSize(bytes?: number | null): string {
   if (!bytes) return '';
@@ -34,13 +36,15 @@ function getFileIcon(mimeType?: string | null): { name: keyof typeof Ionicons.gl
 
 export default function DocumentsScreen() {
   const { colors, typography } = useTheme();
+  const { isOnline } = useNetworkStatus();
+  const { downloading, progress, isCached, loadCachedIds, downloadFile, getLocalPath, removeFile } = useOfflineFiles();
   const { projectId, projectName } = useLocalSearchParams<{ projectId: string; projectName: string }>();
   const { documents, isLoading, uploadProgress, fetchDocuments, uploadDocument, deleteDocument } = useDocuments(projectId ?? '');
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [viewerImage, setViewerImage] = useState<{ url: string; name: string } | null>(null);
 
-  useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
+  useEffect(() => { fetchDocuments(); loadCachedIds(); }, [fetchDocuments, loadCachedIds]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -48,7 +52,23 @@ export default function DocumentsScreen() {
     setRefreshing(false);
   };
 
-  const handleOpen = (doc: Document) => {
+  const handleOpen = async (doc: Document) => {
+    if (!isOnline) {
+      const localPath = await getLocalPath(doc.id);
+      if (localPath) {
+        const isImage = doc.mime_type?.startsWith('image/');
+        if (isImage) {
+          setViewerImage({ url: localPath, name: doc.file_name });
+        } else {
+          Linking.openURL(`file://${localPath}`).catch(() => {
+            Alert.alert('Error', 'No se pudo abrir el archivo local');
+          });
+        }
+      } else {
+        Alert.alert('Sin conexión', 'Este documento no está disponible offline. Conéctate a internet o descárgalo primero tocando el ícono de nube.');
+      }
+      return;
+    }
     const isImage = doc.mime_type?.startsWith('image/');
     if (isImage) {
       setViewerImage({ url: doc.file_url, name: doc.file_name });
@@ -150,6 +170,39 @@ export default function DocumentsScreen() {
 
               <TouchableOpacity onPress={() => handleDelete(item)} style={{ padding: Spacing.xs }}>
                 <Ionicons name="trash-outline" size={16} color={colors.danger} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={async (e) => {
+                  e.stopPropagation?.();
+                  if (!item.file_url) return;
+                  if (isCached(item.id)) {
+                    Alert.alert('Archivo disponible offline', '¿Quieres eliminar la copia local?', [
+                      { text: 'Cancelar', style: 'cancel' },
+                      { text: 'Eliminar', style: 'destructive', onPress: () => removeFile(item.id) },
+                    ]);
+                    return;
+                  }
+                  if (!isOnline) { Alert.alert('Sin conexión', 'Necesitas internet para descargar'); return; }
+                  const result = await downloadFile(item.id, item.file_url, item.file_name, item.mime_type ?? 'application/octet-stream');
+                  if (result) Alert.alert('✅ Descargado', 'El documento ya está disponible sin conexión');
+                  else Alert.alert('Error', 'No se pudo descargar el archivo');
+                }}
+                style={{ padding: Spacing.xs }}
+              >
+                {downloading[item.id] ? (
+                  <View>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    {progress[item.id] > 0 && (
+                      <Text style={{ fontSize: 8, color: colors.primary, textAlign: 'center' }}>{progress[item.id]}%</Text>
+                    )}
+                  </View>
+                ) : (
+                  <Ionicons
+                    name={isCached(item.id) ? 'checkmark-circle' : 'cloud-download-outline'}
+                    size={16}
+                    color={isCached(item.id) ? colors.success : colors.textMuted}
+                  />
+                )}
               </TouchableOpacity>
             </TouchableOpacity>
           );

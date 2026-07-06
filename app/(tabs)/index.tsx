@@ -16,6 +16,9 @@ import { useTheme } from '../../src/lib/ThemeContext';
 import { ProgressBar, Avatar } from '../../src/components/ui';
 import { DonutChart, DonutLegend } from '../../src/components/ui/DonutChart';
 import { HorizontalBarChart } from '../../src/components/ui/HorizontalBarChart';
+import { useProjectPermissions } from '../../src/hooks/useProjectPermissions';
+import { useSubscription } from '../../src/hooks/useSubscription';
+import { PaywallModal } from '../../src/components/ui/PaywallModal';
 
 function StatCard({ label, value, icon, color, colors, typography }: {
   label: string; value: number | string; icon: string; color: string;
@@ -43,6 +46,8 @@ function SectionCard({ children, colors }: { children: React.ReactNode; colors: 
 export default function DashboardScreen() {
   const { colors, typography } = useTheme();
   const { profile, user } = useAuth();
+  const sub = useSubscription();
+  const [paywallFeature, setPaywallFeature] = useState<string | null>(null);
   const { isOnline } = useNetworkStatus();
   const { unreadCount: unreadNotifCount } = useNotifications();
   const { generateReport, isGenerating } = useReport();
@@ -183,7 +188,10 @@ export default function DashboardScreen() {
             </TouchableOpacity>
             {canGeneratePDF && (
               <TouchableOpacity
-                onPress={() => generateReport(activeProject, tasks)}
+                onPress={() => {
+                  if (!sub.canCreatePDF) { setPaywallFeature('Reportes PDF'); return; }
+                  generateReport(activeProject, tasks);
+                }}
                 disabled={isGenerating}
                 style={{
                   backgroundColor: colors.primary, borderRadius: Radius.md,
@@ -253,7 +261,7 @@ export default function DashboardScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => router.push({ pathname: '/budget/[projectId]', params: { projectId: activeProject.id, projectName: activeProject.name } } as never)}
+                onPress={() => sub.canUseBudget ? router.push({ pathname: '/budget/[projectId]', params: { projectId: activeProject.id, projectName: activeProject.name } } as never) : setPaywallFeature('Control de presupuesto')}
                 style={{ flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md, alignItems: 'center', gap: 6 }}
               >
                 <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center' }}>
@@ -299,7 +307,7 @@ export default function DashboardScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => router.push({ pathname: '/evm/[projectId]', params: { projectId: activeProject.id, projectName: activeProject.name } } as never)}
+              onPress={() => sub.canUseEVM ? router.push({ pathname: '/evm/[projectId]', params: { projectId: activeProject.id, projectName: activeProject.name } } as never) : setPaywallFeature('EVM — Valor Ganado')}
               style={{ flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md, alignItems: 'center', gap: 6 }}
             >
               <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#22C55E15', alignItems: 'center', justifyContent: 'center' }}>
@@ -402,6 +410,12 @@ export default function DashboardScreen() {
           )}
         </View>
       </ScrollView>
+
+      <PaywallModal
+        visible={paywallFeature !== null}
+        onClose={() => setPaywallFeature(null)}
+        feature={paywallFeature ?? ''}
+      />
 
       {/* Spinner overlay al generar PDF */}
       <Modal visible={isGenerating} transparent animationType="fade">

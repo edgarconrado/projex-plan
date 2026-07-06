@@ -7,6 +7,7 @@ import { useTasks } from '../../src/hooks/useTasks';
 import { useProjects } from '../../src/hooks/useProjects';
 import { useProjectStore } from '../../src/stores';
 import { useAuth } from '../../src/lib/AuthContext';
+import { useProjectPermissions } from '../../src/hooks/useProjectPermissions';
 import { TaskItem } from '../../src/components/tasks/TaskItem';
 import { TaskFormModal } from '../../src/components/tasks/TaskFormModal';
 import { Spacing, Radius } from '../../src/lib/theme';
@@ -57,6 +58,7 @@ export default function TasksScreen() {
   }, [fetchTasks]);
 
   const activeProject = projects.find((p) => p.id === activeProjectId);
+  const perms = useProjectPermissions(activeProjectId, activeProject?.created_by);
 
   const filtered = tasks.filter((t) => {
     if (!activeProjectId) return false;
@@ -111,12 +113,14 @@ export default function TasksScreen() {
             <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>{filtered.length} tarea{filtered.length !== 1 ? 's' : ''}</Text>
           </View>
           {/* Botón crear tarea */}
-          <TouchableOpacity
-            onPress={() => setTaskModalVisible(true)}
-            style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Ionicons name="add" size={24} color={colors.textInverse} />
-          </TouchableOpacity>
+          {perms.canCreateTask && (
+            <TouchableOpacity
+              onPress={() => setTaskModalVisible(true)}
+              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Ionicons name="add" size={24} color={colors.textInverse} />
+            </TouchableOpacity>
+          )}
         </View>
 
         <TouchableOpacity

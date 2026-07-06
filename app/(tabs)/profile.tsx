@@ -197,6 +197,8 @@ export default function ProfileScreen() {
           <Divider style={{ marginVertical: 0 }} />
           <SettingRow colors={colors} icon="help-circle-outline" label="Soporte" onPress={() => Alert.alert('Soporte', 'Contacta a soporte@projexplan.com')} />
           <Divider style={{ marginVertical: 0 }} />
+          <SettingRow colors={colors} icon="star-outline" label="Plan y suscripción" onPress={() => router.push('/subscription' as never)} />
+          <Divider style={{ marginVertical: 0 }} />
           <SettingRow colors={colors} icon="shield-checkmark-outline" label="Aviso de Privacidad" onPress={() => router.push({ pathname: '/legal', params: { type: 'privacy' } } as never)} />
           <Divider style={{ marginVertical: 0 }} />
           <SettingRow colors={colors} icon="document-text-outline" label="Términos y Condiciones" onPress={() => router.push({ pathname: '/legal', params: { type: 'terms' } } as never)} />

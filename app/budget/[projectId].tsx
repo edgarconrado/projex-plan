@@ -11,6 +11,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/lib/ThemeContext';
 import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
 import { useBudget, BudgetCategory } from '../../src/hooks/useBudget';
+import { useSubscription } from '../../src/hooks/useSubscription';
+import { PaywallModal } from '../../src/components/ui/PaywallModal';
 import { Spacing, Radius } from '../../src/lib/theme';
 
 const CURRENCY = (n: number) =>
@@ -22,6 +24,7 @@ export default function BudgetScreen() {
   const { projectId, projectName } = useLocalSearchParams<{ projectId: string; projectName: string }>();
   const { colors, typography } = useTheme();
   const { isOnline } = useNetworkStatus();
+  const sub = useSubscription();
   const {
     categories, isLoading, totalBudgeted, totalSpent, remaining, pct,
     fetchCategories, addCategory, updateCategory, deleteCategory,
@@ -326,6 +329,12 @@ export default function BudgetScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      <PaywallModal
+        visible={!sub.isLoading && !sub.canUseBudget}
+        onClose={() => router.back()}
+        feature="Control de presupuesto"
+        description="Lleva un control detallado de tus gastos vs presupuesto por categorías con gráficas en tiempo real."
+      />
     </SafeAreaView>
   );
 }

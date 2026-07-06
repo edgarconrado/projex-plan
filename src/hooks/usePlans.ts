@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, uploadFile, generateFileName, STORAGE_BUCKETS } from '../lib/supabase';
 import { Plan, PlanAnnotation, CreateAnnotationDTO } from '../types';
 import { useAuth } from '../lib/AuthContext';
@@ -59,6 +60,7 @@ export function usePlans(projectId: string) {
   const fetchPlans = useCallback(async () => {
     if (!projectId) return;
     setIsLoading(true);
+    const CACHE_KEY = `@projex:plans:${projectId}`;
     try {
       const { data, error } = await supabase
         .from('plans')
@@ -67,7 +69,16 @@ export function usePlans(projectId: string) {
         .eq('is_current_revision', true)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      setPlans((data ?? []) as Plan[]);
+      const plans = (data ?? []) as Plan[];
+      setPlans(plans);
+      // Guardar metadatos en caché para modo offline
+      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(plans));
+    } catch {
+      // Sin conexión — cargar desde caché
+      try {
+        const cached = await AsyncStorage.getItem(CACHE_KEY);
+        if (cached) setPlans(JSON.parse(cached) as Plan[]);
+      } catch {}
     } finally {
       setIsLoading(false);
     }
