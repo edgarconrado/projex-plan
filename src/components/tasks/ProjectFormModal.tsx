@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, Modal, ScrollView,
   TouchableOpacity, KeyboardAvoidingView, Platform,
@@ -43,6 +43,20 @@ export function ProjectFormModal({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Resetear campos cada vez que el modal se abre o cambia el proyecto a editar
+  useEffect(() => {
+    if (visible) {
+      setName(initialData?.name ?? '');
+      setDescription(initialData?.description ?? '');
+      setStatus(initialData?.status ?? 'planning');
+      setCity(initialData?.city ?? '');
+      setAddress(initialData?.address ?? '');
+      setBudget(initialData?.budget ? String(initialData.budget) : '');
+      setDeadline(initialData?.deadline ?? '');
+      setError('');
+    }
+  }, [visible, initialData?.id]);
 
   const handleSubmit = async () => {
     if (!name.trim()) { setError('El nombre es requerido'); return; }

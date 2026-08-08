@@ -48,6 +48,18 @@ export default function DashboardScreen() {
   const { profile, user } = useAuth();
   const sub = useSubscription();
   const [paywallFeature, setPaywallFeature] = useState<string | null>(null);
+  const [projectCreatorIsPro, setProjectCreatorIsPro] = useState(false);
+
+  // Verificar si el creador del proyecto activo tiene Pro
+  useEffect(() => {
+    if (!activeProject) { setProjectCreatorIsPro(false); return; }
+    sub.isProjectCreatorPro(activeProject.created_by).then(setProjectCreatorIsPro);
+  }, [activeProject?.id, activeProject?.created_by, sub.isPro]);
+
+  // El usuario puede usar funciones Pro si él mismo es Pro O si el creador del proyecto es Pro
+  const effectiveCanPDF = sub.canCreatePDF || projectCreatorIsPro;
+  const effectiveCanBudget = sub.canUseBudget || projectCreatorIsPro;
+  const effectiveCanEVM = sub.canUseEVM || projectCreatorIsPro;
   const { isOnline } = useNetworkStatus();
   const { unreadCount: unreadNotifCount } = useNotifications();
   const { generateReport, isGenerating } = useReport();
@@ -189,7 +201,7 @@ export default function DashboardScreen() {
             {canGeneratePDF && (
               <TouchableOpacity
                 onPress={() => {
-                  if (!sub.canCreatePDF) { setPaywallFeature('Reportes PDF'); return; }
+                  if (!effectiveCanPDF) { setPaywallFeature('Reportes PDF'); return; }
                   generateReport(activeProject, tasks);
                 }}
                 disabled={isGenerating}
@@ -261,7 +273,7 @@ export default function DashboardScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => sub.canUseBudget ? router.push({ pathname: '/budget/[projectId]', params: { projectId: activeProject.id, projectName: activeProject.name } } as never) : setPaywallFeature('Control de presupuesto')}
+                onPress={() => effectiveCanBudget ? router.push({ pathname: '/budget/[projectId]', params: { projectId: activeProject.id, projectName: activeProject.name, createdBy: activeProject.created_by ?? '' } } as never) : setPaywallFeature('Control de presupuesto')}
                 style={{ flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md, alignItems: 'center', gap: 6 }}
               >
                 <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center' }}>
@@ -307,7 +319,7 @@ export default function DashboardScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => sub.canUseEVM ? router.push({ pathname: '/evm/[projectId]', params: { projectId: activeProject.id, projectName: activeProject.name } } as never) : setPaywallFeature('EVM — Valor Ganado')}
+              onPress={() => effectiveCanEVM ? router.push({ pathname: '/evm/[projectId]', params: { projectId: activeProject.id, projectName: activeProject.name, createdBy: activeProject.created_by ?? '' } } as never) : setPaywallFeature('EVM — Valor Ganado')}
               style={{ flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md, alignItems: 'center', gap: 6 }}
             >
               <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#22C55E15', alignItems: 'center', justifyContent: 'center' }}>

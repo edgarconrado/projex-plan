@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
   TextInput, Modal, Alert, RefreshControl,
@@ -21,10 +21,15 @@ const CURRENCY = (n: number) =>
 const CATEGORY_COLORS = ['#3B82F6','#22C55E','#F59E0B','#EF4444','#8B5CF6','#EC4899','#14B8A6','#F97316'];
 
 export default function BudgetScreen() {
-  const { projectId, projectName } = useLocalSearchParams<{ projectId: string; projectName: string }>();
+  const { projectId, projectName, createdBy } = useLocalSearchParams<{ projectId: string; projectName: string; createdBy?: string }>();
   const { colors, typography } = useTheme();
   const { isOnline } = useNetworkStatus();
   const sub = useSubscription();
+  const [projectCreatorIsPro, setProjectCreatorIsPro] = useState(false);
+  useEffect(() => {
+    if (createdBy) sub.isProjectCreatorPro(createdBy).then(setProjectCreatorIsPro);
+  }, [createdBy, sub.isPro]);
+  const effectiveCan = sub.canUseBudget || projectCreatorIsPro;
   const {
     categories, isLoading, totalBudgeted, totalSpent, remaining, pct,
     fetchCategories, addCategory, updateCategory, deleteCategory,
@@ -330,7 +335,7 @@ export default function BudgetScreen() {
         </KeyboardAvoidingView>
       </Modal>
       <PaywallModal
-        visible={!sub.isLoading && !sub.canUseBudget}
+        visible={!sub.isLoading && !effectiveCan}
         onClose={() => router.back()}
         feature="Control de presupuesto"
         description="Lleva un control detallado de tus gastos vs presupuesto por categorías con gráficas en tiempo real."

@@ -135,7 +135,20 @@ export default function ProjectsScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.lg }}>
           <Text style={typography.h2}>Proyectos</Text>
           <TouchableOpacity
-            onPress={() => { setEditingProject(null); setModalVisible(true); }}
+            onPress={() => {
+              // Esperar a que sub cargue antes de verificar
+              if (sub.isLoading) return;
+              // Verificar límite de proyectos para usuarios Free
+              if (!sub.isPro) {
+                const ownedCount = projects.filter(p => p.created_by === user?.id).length;
+                if (ownedCount >= sub.maxProjects) {
+                  setPaywallFeature('Proyectos ilimitados');
+                  return;
+                }
+              }
+              setEditingProject(null);
+              setModalVisible(true);
+            }}
             style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
           >
             <Ionicons name="add" size={24} color={colors.textInverse} />
@@ -233,10 +246,12 @@ export default function ProjectsScreen() {
                   </TouchableOpacity>
                   {canGeneratePDF(item) && (
                     <TouchableOpacity
-                      onPress={() => {
-                      if (!sub.canCreatePDF) { setPaywallFeature('Reportes PDF'); return; }
-                      generateReport(item, tasks);
-                    }}
+                      onPress={async () => {
+                        // Verificar si el CREADOR del proyecto tiene Pro
+                        const creatorIsPro = await sub.isProjectCreatorPro(item.created_by);
+                        if (!creatorIsPro) { setPaywallFeature('Reportes PDF'); return; }
+                        generateReport(item, tasks);
+                      }}
                       disabled={isGenerating}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: colors.surfaceSecondary, borderWidth: 0.5, borderColor: colors.border, opacity: isGenerating ? 0.6 : 1 }}
                     >

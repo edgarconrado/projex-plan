@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, TextInput,
   Modal, Alert, RefreshControl, KeyboardAvoidingView,
@@ -20,10 +20,15 @@ import { Spacing, Radius } from '../../src/lib/theme';
 const CURRENCY = (n: number) => n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 });
 
 export default function EVMScreen() {
-  const { projectId, projectName } = useLocalSearchParams<{ projectId: string; projectName: string }>();
+  const { projectId, projectName, createdBy } = useLocalSearchParams<{ projectId: string; projectName: string; createdBy?: string }>();
   const { colors, typography } = useTheme();
   const { isOnline } = useNetworkStatus();
   const sub = useSubscription();
+  const [projectCreatorIsPro, setProjectCreatorIsPro] = useState(false);
+  useEffect(() => {
+    if (createdBy) sub.isProjectCreatorPro(createdBy).then(setProjectCreatorIsPro);
+  }, [createdBy, sub.isPro]);
+  const effectiveCan = sub.canUseEVM || projectCreatorIsPro;
   const perms = useProjectPermissions(projectId, null);
   const { weeks, isLoading, fetchWeeks, upsertWeek, deleteWeek, cpi, spi } = useEVM(projectId);
 
@@ -218,7 +223,7 @@ export default function EVMScreen() {
         </KeyboardAvoidingView>
       </Modal>
       <PaywallModal
-        visible={!sub.isLoading && !sub.canUseEVM}
+        visible={!sub.isLoading && !effectiveCan}
         onClose={() => router.back()}
         feature="EVM — Valor Ganado"
         description="Mide el desempeño real de tu proyecto con indicadores CPI y SPI semana a semana."

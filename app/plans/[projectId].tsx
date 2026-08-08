@@ -12,6 +12,7 @@ import { UploadPlanModal } from '../../src/components/plans/UploadPlanModal';
 import { MapPlanViewer } from '../../src/components/plans/MapPlanViewer';
 import { NewRevisionModal } from '../../src/components/plans/NewRevisionModal';
 import { RevisionHistoryModal } from '../../src/components/plans/RevisionHistoryModal';
+import { PlanCompareModal } from '../../src/components/plans/PlanCompareModal';
 import { Spacing, Radius } from '../../src/lib/theme';
 import { useTheme } from '../../src/lib/ThemeContext';
 import { EmptyState, LoadingOverlay, Badge } from '../../src/components/ui';
@@ -20,11 +21,19 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
 import { useOfflineFiles } from '../../src/hooks/useOfflineFiles';
+import { useUploadQueue } from '../../src/hooks/useUploadQueue';
+import { UploadQueueBanner } from '../../src/components/ui/UploadQueueBanner';
 
 export default function PlansScreen() {
   const { colors, typography } = useTheme();
   const { isOnline } = useNetworkStatus();
   const { downloading, progress, isCached, loadCachedIds, downloadFile, getLocalPath, removeFile } = useOfflineFiles();
+  const { queue: uploadQueue, pendingCount, isProcessing, enqueue, processQueue, retryItem, removeItem } = useUploadQueue(
+    async (localPath, fileName, mimeType, meta) => {
+      await uploadPlan(localPath, fileName, mimeType, meta);
+      await fetchPlans();
+    },
+  );
   const { projectId, projectName } = useLocalSearchParams<{ projectId: string; projectName: string }>();
   const { plans, isLoading, uploadProgress, fetchPlans, uploadPlan, deletePlan, addAnnotation, deleteAnnotation, updateScale, uploadRevision, fetchRevisionHistory } = usePlans(projectId ?? '');
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
@@ -34,6 +43,10 @@ export default function PlansScreen() {
   const [showMapModal, setShowMapModal] = useState(false);
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [historyTargetPlan, setHistoryTargetPlan] = useState<Plan | null>(null);
+  const [showCompareModal, setShowCompareModal] = useState(false);
+  const [comparePlan, setComparePlan] = useState<Plan | null>(null);
+  const [comparePlanId, setComparePlanId] = useState('');
+  const [comparePlanTitle, setComparePlanTitle] = useState('');
 
   useEffect(() => { fetchPlans(); loadCachedIds(); }, [fetchPlans, loadCachedIds]);
 
@@ -64,7 +77,6 @@ export default function PlansScreen() {
 
   if (isLoading && plans.length === 0) return <LoadingOverlay message="Cargando planos..." />;
 
-  // Vista de detalle de un plano
   if (selectedPlan) {
     const plan = plans.find((p) => p.id === selectedPlan.id) ?? selectedPlan;
     return (
@@ -91,30 +103,10 @@ export default function PlansScreen() {
             <Ionicons name="time-outline" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={async () => {
-              const history = await fetchRevisionHistory(plan.plan_group_id ?? plan.id);
-              const previous = history.find((p) => !p.is_current_revision);
-              if (!previous) {
-                Alert.alert('Sin revisiones anteriores', 'Este plano todavía no tiene versiones anteriores para comparar.');
-                return;
-              }
-              if (previous.file_type === 'pdf' || plan.file_type === 'pdf') {
-                Alert.alert('No disponible para PDF', 'La comparación visual solo está disponible para imágenes por ahora.');
-                return;
-              }
-              router.push({
-                pathname: '/plans/compare',
-                params: {
-                  planAId: previous.id,
-                  planBId: plan.id,
-                  planGroupId: plan.plan_group_id ?? plan.id,
-                  projectId: projectId ?? '',
-                },
-              } as never);
-            }}
+            onPress={() => { setComparePlan(plan); setComparePlanId(plan.id); setComparePlanTitle(plan.title); setShowCompareModal(true); }}
             style={{ padding: 6 }}
           >
-            <Ionicons name="swap-horizontal-outline" size={20} color={colors.textSecondary} />
+            <Ionicons name="layers-outline" size={20} color={colors.primary} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setShowMapModal(true)}
@@ -137,7 +129,6 @@ export default function PlansScreen() {
           onUpdateScale={(planId, scale) => updateScale(planId, scale)}
         />
 
-        {/* Leyenda de anotaciones */}
         {(plan.annotations?.length ?? 0) > 0 && (
           <View style={{ padding: Spacing.md, borderTopWidth: 0.5, borderTopColor: colors.border, backgroundColor: colors.surface }}>
             <Text style={[typography.caption, { color: colors.textMuted, marginBottom: 6 }]}>
@@ -178,11 +169,20 @@ export default function PlansScreen() {
           onSelectRevision={(revision) => setSelectedPlan(revision)}
           projectId={projectId ?? ''}
         />
+
         <MapPlanViewer
           visible={showMapModal}
           onClose={() => setShowMapModal(false)}
           projectId={projectId ?? ''}
           onPlanSaved={() => fetchPlans()}
+        />
+
+        <PlanCompareModal
+          visible={showCompareModal}
+          onClose={() => { setShowCompareModal(false); setComparePlan(null); setComparePlanId(''); setComparePlanTitle(''); }}
+          planId={comparePlanId}
+          planTitle={comparePlanTitle}
+          projectId={projectId ?? ''}
         />
       </SafeAreaView>
     );
@@ -190,7 +190,6 @@ export default function PlansScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, paddingBottom: Spacing.md }}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
@@ -213,6 +212,16 @@ export default function PlansScreen() {
         contentContainerStyle={{ padding: Spacing.lg, gap: Spacing.md, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        ListHeaderComponent={
+          uploadQueue.length > 0 ? (
+            <UploadQueueBanner
+              queue={uploadQueue}
+              isProcessing={isProcessing}
+              onRetry={retryItem}
+              onRemove={removeItem}
+            />
+          ) : null
+        }
         ListEmptyComponent={
           <EmptyState
             icon={<Ionicons name="map-outline" size={48} color={colors.textMuted} />}
@@ -286,7 +295,6 @@ export default function PlansScreen() {
                 <TouchableOpacity onPress={() => handleDelete(item)} style={{ padding: Spacing.xs }}>
                   <Ionicons name="trash-outline" size={16} color={colors.danger} />
                 </TouchableOpacity>
-                {/* Botón descarga offline */}
                 <TouchableOpacity
                   onPress={async (e) => {
                     e.stopPropagation?.();
@@ -334,7 +342,15 @@ export default function PlansScreen() {
       <UploadPlanModal
         visible={uploadModalVisible}
         onClose={() => setUploadModalVisible(false)}
-        onUpload={uploadPlan}
+        onUpload={async (fileUri, fileName, mimeType, meta) => {
+          if (!isOnline) {
+            await enqueue('plan', projectId ?? '', fileUri, fileName, mimeType, meta);
+            setUploadModalVisible(false);
+          } else {
+            const newPlan = await uploadPlan(fileUri, fileName, mimeType, meta);
+            await fetchPlans();
+          }
+        }}
         uploadProgress={uploadProgress}
         onOpenMap={() => setShowMapModal(true)}
       />

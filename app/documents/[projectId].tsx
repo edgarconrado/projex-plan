@@ -17,6 +17,8 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
 import { useOfflineFiles } from '../../src/hooks/useOfflineFiles';
+import { useUploadQueue } from '../../src/hooks/useUploadQueue';
+import { UploadQueueBanner } from '../../src/components/ui/UploadQueueBanner';
 
 function formatFileSize(bytes?: number | null): string {
   if (!bytes) return '';
@@ -40,6 +42,13 @@ export default function DocumentsScreen() {
   const { downloading, progress, isCached, loadCachedIds, downloadFile, getLocalPath, removeFile } = useOfflineFiles();
   const { projectId, projectName } = useLocalSearchParams<{ projectId: string; projectName: string }>();
   const { documents, isLoading, uploadProgress, fetchDocuments, uploadDocument, deleteDocument } = useDocuments(projectId ?? '');
+  const { queue: uploadQueue, isProcessing, enqueue, retryItem, removeItem } = useUploadQueue(
+    undefined,
+    async (localPath, fileName, mimeType, meta) => {
+      await uploadDocument(localPath, fileName, mimeType, meta.category ?? 'General', meta.description);
+      await fetchDocuments();
+    },
+  );
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [viewerImage, setViewerImage] = useState<{ url: string; name: string } | null>(null);
@@ -118,6 +127,16 @@ export default function DocumentsScreen() {
         contentContainerStyle={{ padding: Spacing.lg, gap: Spacing.sm, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        ListHeaderComponent={
+          uploadQueue.length > 0 ? (
+            <UploadQueueBanner
+              queue={uploadQueue}
+              isProcessing={isProcessing}
+              onRetry={retryItem}
+              onRemove={removeItem}
+            />
+          ) : null
+        }
         ListEmptyComponent={
           <EmptyState
             icon={<Ionicons name="folder-open-outline" size={48} color={colors.textMuted} />}
@@ -212,7 +231,15 @@ export default function DocumentsScreen() {
       <UploadDocumentModal
         visible={uploadModalVisible}
         onClose={() => setUploadModalVisible(false)}
-        onUpload={uploadDocument}
+        onUpload={async (fileUri, fileName, mimeType, category, description) => {
+          if (!isOnline) {
+            await enqueue('document', projectId ?? '', fileUri, fileName, mimeType, { category, description: description ?? '' });
+            setUploadModalVisible(false);
+          } else {
+            await uploadDocument(fileUri, fileName, mimeType, category, description);
+            await fetchDocuments();
+          }
+        }}
         uploadProgress={uploadProgress}
       />
 
