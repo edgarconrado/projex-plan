@@ -25,12 +25,26 @@
       }
     },
     "production": {
+      "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
+      },
+      "ios": {
+        "autoIncrement": true
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./google-play-key.json",
+        "track": "internal"
+      },
+      "ios": {
+        "appleId": "edgarconrado23@gmail.com",
+        "ascAppId": "6806519200",
+        "appleTeamId": "XD4752SP79"
+      }
+    }
   }
 }

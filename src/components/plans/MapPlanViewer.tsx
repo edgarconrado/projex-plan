@@ -63,11 +63,16 @@ export function MapPlanViewer({ visible, onClose, projectId, onPlanSaved }: MapP
     if (!mapRef.current || !user) return;
     setIsSaving(true);
     try {
+      // Esperar a que el mapa termine de renderizar completamente
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       // Capturar la vista del mapa como imagen
       const uri = await captureRef(mapRef, {
         format: 'jpg',
-        quality: 0.9,
+        quality: 0.8,
+        result: 'tmpfile',
       });
+      console.log('[MapPlanViewer] URI capturada:', uri);
 
       // Subir la imagen a Supabase Storage
       const fileName = generateFileName('mapa_sitio.jpg');
@@ -75,6 +80,7 @@ export function MapPlanViewer({ visible, onClose, projectId, onPlanSaved }: MapP
       const url = await uploadFile(STORAGE_BUCKETS.PLANS, path, uri, 'image/jpeg');
 
       // Guardar como plano en la BD
+      const mapFileName = `mapa_sitio_${Date.now()}.jpg`;
       const { error } = await supabase.from('plans').insert({
         project_id: projectId,
         uploaded_by: user.id,
@@ -84,9 +90,12 @@ export function MapPlanViewer({ visible, onClose, projectId, onPlanSaved }: MapP
         revision: 'Rev. 1',
         status: 'Vigente',
         file_url: url,
-        file_type: 'image',
+        file_type: 'jpg',
+        file_name: mapFileName,
         mime_type: 'image/jpeg',
         is_current_revision: true,
+        level: 'Sitio',
+        scale: '1:1000',
       });
 
       if (error) throw error;
@@ -94,9 +103,9 @@ export function MapPlanViewer({ visible, onClose, projectId, onPlanSaved }: MapP
       Alert.alert('✅ Guardado', 'El mapa de sitio se guardó como plano del proyecto');
       onPlanSaved();
       onClose();
-    } catch (e) {
-      console.log('[MapPlanViewer] Error:', e);
-      Alert.alert('Error', 'No se pudo guardar el mapa');
+    } catch (e: any) {
+      console.log('[MapPlanViewer] Error completo:', JSON.stringify(e), e?.message, e?.stack);
+      Alert.alert('Error', `No se pudo guardar el mapa: ${e?.message ?? JSON.stringify(e)}`);
     } finally {
       setIsSaving(false);
     }

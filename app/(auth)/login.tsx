@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Image } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/lib/AuthContext';
 import { Spacing, Radius } from '../../src/lib/theme';
@@ -52,6 +52,9 @@ export default function LoginScreen() {
             leftIcon={<Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} />}
             rightIcon={<TouchableOpacity onPress={() => setShowPassword(v => !v)}><Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.textMuted} /></TouchableOpacity>}
           />
+          <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password' as never)} style={{ alignSelf: 'flex-end' }}>
+            <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>¿Olvidaste tu contraseña?</Text>
+          </TouchableOpacity>
           <Button label="Iniciar sesión" onPress={handleLogin} loading={loading} size="lg" style={{ marginTop: Spacing.sm }} />
           <View style={{ alignItems: 'center', marginTop: Spacing.lg }}>
             <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>

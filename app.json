@@ -16,7 +16,16 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.jacarandalab.projexplan"
+      "bundleIdentifier": "com.jacarandalab.projexplan",
+      "buildNumber": "3",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Projex Plan usa tu ubicación para el mapa de sitio del proyecto.",
+        "NSLocationAlwaysUsageDescription": "Projex Plan usa tu ubicación para el mapa de sitio del proyecto.",
+        "NSCameraUsageDescription": "Projex Plan necesita acceso a tu cámara para tomar fotos de obra.",
+        "NSPhotoLibraryUsageDescription": "Projex Plan necesita acceso a tus fotos para subir documentos y planos.",
+        "NSPhotoLibraryAddUsageDescription": "Projex Plan necesita guardar capturas del mapa de sitio.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -24,6 +33,7 @@
         "backgroundColor": "#0A0A0A"
       },
       "package": "com.jacarandalab.projexplan",
+      "versionCode": 1,
       "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, Switch, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -32,7 +32,7 @@ function SettingRow({ icon, label, value, onPress, rightElement, colors }: {
 }
 
 export default function ProfileScreen() {
-  const { profile, updateProfile, signOut, refreshProfile, isLoading } = useAuth();
+  const { profile, updateProfile, signOut, refreshProfile, isLoading, user } = useAuth();
   const { colors, typography, mode, setMode } = useTheme();
   const { isOnline } = useNetworkStatus();
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -43,16 +43,71 @@ export default function ProfileScreen() {
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [savingNotifications, setSavingNotifications] = useState(false);
+  const [profileTimeout, setProfileTimeout] = useState(false);
 
-  if (isLoading || !profile) {
+  // Si hay sesión pero no perfil, intentar crearlo (cuenta nueva en iPad/dispositivo nuevo)
+  useEffect(() => {
+    if (!isLoading && !profile && user) {
+      // Intentar upsert del perfil en caso de que no se haya creado al registrarse
+      supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          email: user.email ?? '',
+          full_name: user.user_metadata?.full_name ?? user.email ?? 'Usuario',
+          role: 'worker',
+        })
+        .then(() => refreshProfile());
+
+      // Timeout de seguridad: si después de 8s sigue sin perfil, mostrar error recuperable
+      const timer = setTimeout(() => setProfileTimeout(true), 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, profile, user]);
+
+  if (isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={isOnline ? ['top', 'left', 'right'] : ['left', 'right']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'left', 'right']}>
         <ProfileSkeleton />
       </SafeAreaView>
     );
   }
 
-  const notificationsEnabled = profile.notifications_enabled ?? true;
+  // Perfil aún cargando pero no timeout
+  if (!profile && !profileTimeout) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'left', 'right']}>
+        <ProfileSkeleton />
+      </SafeAreaView>
+    );
+  }
+
+  // Timeout: perfil no disponible, mostrar pantalla de reintento
+  if (!profile && profileTimeout) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'left', 'right']}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 }}>
+          <Ionicons name="person-circle-outline" size={64} color={colors.textMuted} />
+          <Text style={[typography.h4, { textAlign: 'center' }]}>No se pudo cargar el perfil</Text>
+          <Text style={[typography.bodySmall, { textAlign: 'center', color: colors.textMuted }]}>
+            Verifica tu conexión a internet e intenta de nuevo.
+          </Text>
+          <TouchableOpacity
+            onPress={() => { setProfileTimeout(false); refreshProfile(); }}
+            style={{ paddingHorizontal: 24, paddingVertical: 12, backgroundColor: colors.primary, borderRadius: 10 }}
+          >
+            <Text style={{ color: colors.textInverse, fontWeight: '600' }}>Reintentar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={signOut} style={{ marginTop: 8 }}>
+            <Text style={{ color: colors.danger, fontSize: 14 }}>Cerrar sesión</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const p = profile!; // guaranteed non-null by guards above
+  const notificationsEnabled = p.notifications_enabled ?? true;
 
   const handleSaveProfile = async () => {
     if (!fullName.trim()) { Alert.alert('Error', 'El nombre es requerido'); return; }
@@ -73,7 +128,7 @@ export default function ProfileScreen() {
     setUploadingAvatar(true);
     try {
       const asset = result.assets[0];
-      const path = `avatars/${profile?.id}/${generateFileName('avatar.jpg')}`;
+      const path = `avatars/${p?.id}/${generateFileName('avatar.jpg')}`;
       const url = await uploadFile(STORAGE_BUCKETS.AVATARS, path, asset.uri, 'image/jpeg');
       await updateProfile({ avatar_url: url });
       await refreshProfile();
@@ -88,7 +143,7 @@ export default function ProfileScreen() {
       // Si se desactivan, limpiamos el push token registrado para que el
       // backend (triggers/funciones que envían notificaciones) no le mande nada.
       if (!value) {
-        await supabase.from('profiles').update({ expo_push_token: null }).eq('id', profile.id);
+        await supabase.from('profiles').update({ expo_push_token: null }).eq('id', p.id);
       }
     } catch (e: unknown) {
       Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo actualizar');
@@ -109,16 +164,16 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={{ padding: Spacing.lg, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
         <View style={{ alignItems: 'center', paddingVertical: Spacing.xl }}>
           <TouchableOpacity onPress={handlePickAvatar} style={{ marginBottom: Spacing.lg }}>
-            <Avatar name={profile.full_name} imageUrl={profile.avatar_url} size={88} />
+            <Avatar name={p.full_name} imageUrl={p.avatar_url} size={88} />
             <View style={{ position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.background }}>
               <Ionicons name={uploadingAvatar ? 'hourglass-outline' : 'camera-outline'} size={14} color={colors.textInverse} />
             </View>
           </TouchableOpacity>
-          <Text style={typography.h3}>{profile.full_name}</Text>
-          {profile.job_title && <Text style={[typography.bodySmall, { color: colors.textMuted, marginTop: 4 }]}>{profile.job_title}</Text>}
-          {profile.company && <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>{profile.company}</Text>}
+          <Text style={typography.h3}>{p.full_name}</Text>
+          {p.job_title && <Text style={[typography.bodySmall, { color: colors.textMuted, marginTop: 4 }]}>{p.job_title}</Text>}
+          {p.company && <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>{p.company}</Text>}
           <View style={{ marginTop: Spacing.md, paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radius.full, backgroundColor: colors.primaryMuted, borderWidth: 0.5, borderColor: colors.primary }}>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.primary }}>{getRoleLabel(profile.role)}</Text>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.primary }}>{getRoleLabel(p.role)}</Text>
           </View>
         </View>
 
@@ -126,16 +181,16 @@ export default function ProfileScreen() {
 
         <Text style={[typography.label, { color: colors.textMuted, marginTop: Spacing.xl, marginBottom: Spacing.sm }]}>Información personal</Text>
         <View style={{ backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, paddingHorizontal: Spacing.lg }}>
-          <SettingRow colors={colors} icon="mail-outline" label="Correo" value={profile.email} />
+          <SettingRow colors={colors} icon="mail-outline" label="Correo" value={p.email} />
           <Divider style={{ marginVertical: 0 }} />
-          <SettingRow colors={colors} icon="call-outline" label="Teléfono" value={profile.phone ?? 'No especificado'} onPress={() => { setFullName(profile.full_name); setJobTitle(profile.job_title ?? ''); setCompany(profile.company ?? ''); setPhone(profile.phone ?? ''); setEditModalVisible(true); }} />
+          <SettingRow colors={colors} icon="call-outline" label="Teléfono" value={p.phone ?? 'No especificado'} onPress={() => { setFullName(p.full_name); setJobTitle(p.job_title ?? ''); setCompany(p.company ?? ''); setPhone(p.phone ?? ''); setEditModalVisible(true); }} />
           <Divider style={{ marginVertical: 0 }} />
-          <SettingRow colors={colors} icon="briefcase-outline" label="Puesto" value={profile.job_title ?? 'No especificado'} onPress={() => { setFullName(profile.full_name); setJobTitle(profile.job_title ?? ''); setCompany(profile.company ?? ''); setPhone(profile.phone ?? ''); setEditModalVisible(true); }} />
+          <SettingRow colors={colors} icon="briefcase-outline" label="Puesto" value={p.job_title ?? 'No especificado'} onPress={() => { setFullName(p.full_name); setJobTitle(p.job_title ?? ''); setCompany(p.company ?? ''); setPhone(p.phone ?? ''); setEditModalVisible(true); }} />
           <Divider style={{ marginVertical: 0 }} />
-          <SettingRow colors={colors} icon="business-outline" label="Empresa" value={profile.company ?? 'No especificado'} onPress={() => { setFullName(profile.full_name); setJobTitle(profile.job_title ?? ''); setCompany(profile.company ?? ''); setPhone(profile.phone ?? ''); setEditModalVisible(true); }} />
+          <SettingRow colors={colors} icon="business-outline" label="Empresa" value={p.company ?? 'No especificado'} onPress={() => { setFullName(p.full_name); setJobTitle(p.job_title ?? ''); setCompany(p.company ?? ''); setPhone(p.phone ?? ''); setEditModalVisible(true); }} />
         </View>
 
-        <TouchableOpacity onPress={() => { setFullName(profile.full_name); setJobTitle(profile.job_title ?? ''); setCompany(profile.company ?? ''); setPhone(profile.phone ?? ''); setEditModalVisible(true); }}
+        <TouchableOpacity onPress={() => { setFullName(p.full_name); setJobTitle(p.job_title ?? ''); setCompany(p.company ?? ''); setPhone(p.phone ?? ''); setEditModalVisible(true); }}
           style={{ marginTop: Spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1, borderColor: colors.primary }}>
           <Ionicons name="pencil-outline" size={16} color={colors.primary} />
           <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 14 }}>Editar perfil</Text>
@@ -195,9 +250,10 @@ export default function ProfileScreen() {
         <View style={{ backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, paddingHorizontal: Spacing.lg }}>
           <SettingRow colors={colors} icon="information-circle-outline" label="Versión" value="1.0.0" />
           <Divider style={{ marginVertical: 0 }} />
-          <SettingRow colors={colors} icon="help-circle-outline" label="Soporte" onPress={() => Alert.alert('Soporte', 'Contacta a soporte@projexplan.com')} />
+          <SettingRow colors={colors} icon="help-circle-outline" label="Soporte" onPress={() => Alert.alert('Soporte', 'Contacta a edgarconrado23@gmail.com')} />
           <Divider style={{ marginVertical: 0 }} />
           <SettingRow colors={colors} icon="star-outline" label="Plan y suscripción" onPress={() => router.push('/subscription' as never)} />
+          {/* <SettingRow colors={colors} icon="star-outline" label="Plan y suscripción" onPress={() => Alert.alert('En desarrollo', 'Esta funcion esta en desarrollo')} /> */}
           <Divider style={{ marginVertical: 0 }} />
           <SettingRow colors={colors} icon="shield-checkmark-outline" label="Aviso de Privacidad" onPress={() => router.push({ pathname: '/legal', params: { type: 'privacy' } } as never)} />
           <Divider style={{ marginVertical: 0 }} />
@@ -211,7 +267,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         <Text style={[typography.caption, { color: colors.textMuted, textAlign: 'center', marginTop: Spacing.xl }]}>
-          Miembro desde {new Date(profile.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'long' })}
+          Miembro desde {new Date(p.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'long' })}
         </Text>
       </ScrollView>
 
