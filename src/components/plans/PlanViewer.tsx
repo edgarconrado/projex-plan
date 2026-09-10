@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, Modal,
   ScrollView, Dimensions, Alert, TextInput,
@@ -7,7 +7,14 @@ import {
 import { Image } from 'react-native';
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
-import Pdf from 'react-native-pdf';
+// react-native-pdf requiere native modules — no disponible en Expo Go
+// Se usa require() condicional para evitar crash en desarrollo
+let Pdf: React.ComponentType<any> | null = null;
+try {
+  Pdf = require('react-native-pdf').default;
+} catch {
+  Pdf = null;
+}
 import Svg, { Circle, Line, Text as SvgText } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { Plan, PlanAnnotation, AnnotationType } from '../../types';
@@ -689,6 +696,8 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
                   <Text style={[Typography.bodySmall, { color: Colors.textMuted }]}>No se pudo descargar el PDF</Text>
                 </View>
               ) : localPdfPath ? (
+                Pdf ? (
+                Pdf ? (
                 <Pdf
                   source={{ uri: localPdfPath, cache: false }}
                   style={{ width: SCREEN_W, height: VIEWER_H, backgroundColor: '#1a1a1a' }}
@@ -706,6 +715,22 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
                   scale={1}
                   enableDoubleTapZoom
                 />
+              ) : (
+                <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a', gap: 12 }}>
+                  <Ionicons name="document-outline" size={48} color={Colors.textMuted} />
+                  <Text style={[Typography.bodySmall, { color: Colors.textMuted, textAlign: 'center', paddingHorizontal: 32 }]}>
+                    El visor de PDF no está disponible en Expo Go.{' '}Usa el build de producción para ver planos PDF.
+                  </Text>
+                </View>
+              )
+              ) : (
+                <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a', gap: 12 }}>
+                  <Ionicons name="document-outline" size={48} color={Colors.textMuted} />
+                  <Text style={[Typography.bodySmall, { color: Colors.textMuted, textAlign: 'center', paddingHorizontal: 32 }]}>
+                    El visor de PDF no está disponible en Expo Go.{' '}Usa el build de producción para ver planos PDF.
+                  </Text>
+                </View>
+              )
               ) : (
                 <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a' }}>
                   <ActivityIndicator color={Colors.primary} />
