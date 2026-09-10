@@ -2,7 +2,6 @@ import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../lib/ThemeContext';
 import { Spacing, Radius } from '../../lib/theme';
-import { router } from 'expo-router';
 
 interface PaywallModalProps {
   visible: boolean;
@@ -59,32 +58,17 @@ export function PaywallModal({ visible, onClose, feature, description }: Paywall
               ))}
             </View>
 
-            {/* Precios */}
-            <View style={{ flexDirection: 'row', gap: Spacing.md }}>
-              <View style={{ flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 1, borderColor: colors.border, padding: Spacing.md, alignItems: 'center', gap: 4 }}>
-                <Text style={[typography.caption, { color: colors.textMuted }]}>Mensual</Text>
-                <Text style={{ fontSize: 22, fontWeight: '800', color: colors.textPrimary }}>$199</Text>
-                <Text style={[typography.caption, { color: colors.textMuted }]}>MXN/mes</Text>
-              </View>
-              <View style={{ flex: 1, backgroundColor: '#FFD70015', borderRadius: Radius.lg, borderWidth: 2, borderColor: '#FFD700', padding: Spacing.md, alignItems: 'center', gap: 4 }}>
-                <View style={{ backgroundColor: '#FFD700', borderRadius: 9999, paddingHorizontal: 8, paddingVertical: 2 }}>
-                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#0A0A0A' }}>AHORRA 2 MESES</Text>
-                </View>
-                <Text style={{ fontSize: 22, fontWeight: '800', color: colors.textPrimary }}>$1,490</Text>
-                <Text style={[typography.caption, { color: colors.textMuted }]}>MXN/año</Text>
-              </View>
+            {/* Próximamente */}
+            <View style={{ backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.lg, alignItems: 'center', gap: 8 }}>
+              <Ionicons name="time-outline" size={32} color={colors.textMuted} />
+              <Text style={[typography.bodySmall, { fontWeight: '700', textAlign: 'center' }]}>Próximamente disponible</Text>
+              <Text style={[typography.caption, { color: colors.textMuted, textAlign: 'center' }]}>
+                Las suscripciones Pro estarán disponibles en una próxima actualización.
+              </Text>
             </View>
 
-            {/* CTA */}
-            <TouchableOpacity
-              onPress={() => { onClose(); router.push('/subscription' as never); }}
-              style={{ backgroundColor: '#FFD700', borderRadius: Radius.lg, padding: Spacing.md, alignItems: 'center' }}
-            >
-              <Text style={{ fontSize: 16, fontWeight: '800', color: '#0A0A0A' }}>Ver planes y suscribirse</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={onClose} style={{ alignItems: 'center', padding: Spacing.sm }}>
-              <Text style={[typography.bodySmall, { color: colors.textMuted }]}>Ahora no</Text>
+            <TouchableOpacity onPress={onClose} style={{ backgroundColor: colors.primary, borderRadius: Radius.lg, padding: Spacing.md, alignItems: 'center' }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textInverse }}>Entendido</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>

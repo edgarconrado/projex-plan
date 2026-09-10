@@ -32,7 +32,7 @@ function SettingRow({ icon, label, value, onPress, rightElement, colors }: {
 }
 
 export default function ProfileScreen() {
-  const { profile, updateProfile, signOut, refreshProfile, isLoading, user } = useAuth();
+  const { profile, updateProfile, signOut, refreshProfile, isLoading, user, deleteAccount } = useAuth();
   const { colors, typography, mode, setMode } = useTheme();
   const { isOnline } = useNetworkStatus();
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -159,6 +159,40 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Eliminar cuenta',
+      '¿Estás seguro? Esta acción eliminará permanentemente tu cuenta y todos tus datos. Esta operación no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar cuenta',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Confirmar eliminación',
+              'Escribe ELIMINAR para confirmar que deseas borrar tu cuenta permanentemente.',
+              [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                  text: 'Confirmar y eliminar',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await deleteAccount();
+                    } catch (e) {
+                      Alert.alert('Error', 'No se pudo eliminar la cuenta. Intenta de nuevo o contacta soporte.');
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={isOnline ? ['top', 'left', 'right'] : ['left', 'right']}>
       <ScrollView contentContainerStyle={{ padding: Spacing.lg, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
@@ -252,8 +286,8 @@ export default function ProfileScreen() {
           <Divider style={{ marginVertical: 0 }} />
           <SettingRow colors={colors} icon="help-circle-outline" label="Soporte" onPress={() => Alert.alert('Soporte', 'Contacta a edgarconrado23@gmail.com')} />
           <Divider style={{ marginVertical: 0 }} />
-          <SettingRow colors={colors} icon="star-outline" label="Plan y suscripción" onPress={() => router.push('/subscription' as never)} />
-          {/* <SettingRow colors={colors} icon="star-outline" label="Plan y suscripción" onPress={() => Alert.alert('En desarrollo', 'Esta funcion esta en desarrollo')} /> */}
+          {/* Suscripción oculta hasta integrar IAP — no mostrar a Apple */}
+          {/* <SettingRow colors={colors} icon="star-outline" label="Plan y suscripción" onPress={() => router.push('/subscription' as never)} /> */}
           <Divider style={{ marginVertical: 0 }} />
           <SettingRow colors={colors} icon="shield-checkmark-outline" label="Aviso de Privacidad" onPress={() => router.push({ pathname: '/legal', params: { type: 'privacy' } } as never)} />
           <Divider style={{ marginVertical: 0 }} />
@@ -264,6 +298,12 @@ export default function ProfileScreen() {
           style={{ marginTop: Spacing.xl, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, padding: Spacing.md, borderRadius: Radius.md, backgroundColor: colors.dangerMuted, borderWidth: 0.5, borderColor: colors.danger }}>
           <Ionicons name="log-out-outline" size={18} color={colors.danger} />
           <Text style={{ color: colors.danger, fontWeight: '600', fontSize: 15 }}>Cerrar sesión</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={handleDeleteAccount}
+          style={{ marginTop: Spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, padding: Spacing.md, borderRadius: Radius.md }}>
+          <Ionicons name="trash-outline" size={16} color={colors.textMuted} />
+          <Text style={{ color: colors.textMuted, fontSize: 13 }}>Eliminar cuenta</Text>
         </TouchableOpacity>
 
         <Text style={[typography.caption, { color: colors.textMuted, textAlign: 'center', marginTop: Spacing.xl }]}>

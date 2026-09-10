@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.jacarandalab.projexplan",
-      "buildNumber": "3",
+      "buildNumber": "5",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Projex Plan usa tu ubicación para el mapa de sitio del proyecto.",
         "NSLocationAlwaysUsageDescription": "Projex Plan usa tu ubicación para el mapa de sitio del proyecto.",

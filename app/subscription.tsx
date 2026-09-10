@@ -193,15 +193,14 @@ export default function SubscriptionScreen() {
               </View>
 
               {!isPro && (
-                <TouchableOpacity
-                  onPress={handleSubscribe}
-                  disabled={loading}
-                  style={{ backgroundColor: '#FFD700', borderRadius: Radius.lg, padding: Spacing.md, alignItems: 'center', marginTop: 4 }}
-                >
-                  <Text style={{ fontSize: 16, fontWeight: '800', color: '#0A0A0A' }}>
-                    {loading ? 'Procesando...' : `Suscribirse ${billingCycle === 'annual' ? 'anual' : 'mensual'}`}
+                <View style={{ backgroundColor: '#1A1A1A', borderRadius: Radius.lg, padding: Spacing.md, alignItems: 'center', marginTop: 4, borderWidth: 0.5, borderColor: '#333' }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#9CA3AF' }}>
+                    Próximamente disponible
                   </Text>
-                </TouchableOpacity>
+                  <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>
+                    Las suscripciones estarán disponibles en una próxima actualización.
+                  </Text>
+                </View>
               )}
             </View>
           </View>
@@ -222,11 +221,9 @@ export default function SubscriptionScreen() {
         </View>
 
         {/* Restaurar y legales */}
-        <TouchableOpacity onPress={handleRestore} style={{ alignItems: 'center' }}>
-          <Text style={[typography.bodySmall, { color: colors.primary }]}>Restaurar compras</Text>
-        </TouchableOpacity>
+        {/* Restaurar compras — disponible cuando se integre RevenueCat */}
         <Text style={[typography.caption, { color: colors.textMuted, textAlign: 'center' }]}>
-          La suscripción se renueva automáticamente. Puedes cancelar en cualquier momento desde la configuración de tu tienda (Google Play / App Store). Al suscribirte aceptas nuestros Términos y Condiciones.
+          Las suscripciones estarán disponibles próximamente.
         </Text>
       </ScrollView>
     </SafeAreaView>

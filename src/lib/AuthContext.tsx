@@ -19,6 +19,7 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   refreshProfile: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -122,11 +123,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (session?.user) await fetchProfile(session.user.id);
   };
 
+  const deleteAccount = async () => {
+    if (!session?.user) throw new Error('No hay sesión activa');
+    const userId = session.user.id;
+
+    // 1. Borrar datos del usuario en Supabase (en orden para respetar FK)
+    await supabase.from('message_reads').delete().eq('user_id', userId);
+    await supabase.from('messages').delete().eq('sender_id', userId);
+    await supabase.from('conversation_participants').delete().eq('user_id', userId);
+    await supabase.from('task_comments').delete().eq('user_id', userId);
+    await supabase.from('task_checklist').delete().eq('completed_by', userId);
+    await supabase.from('notifications').delete().eq('user_id', userId);
+    await supabase.from('activity_log').delete().eq('user_id', userId);
+    await supabase.from('photos').delete().eq('uploaded_by', userId);
+    await supabase.from('documents').delete().eq('uploaded_by', userId);
+    await supabase.from('plan_annotations').delete().eq('created_by', userId);
+    await supabase.from('plans').delete().eq('uploaded_by', userId);
+    await supabase.from('tasks').delete().eq('created_by', userId);
+    await supabase.from('project_members').delete().eq('user_id', userId);
+    await supabase.from('user_settings').delete().eq('user_id', userId);
+    await supabase.from('profiles').delete().eq('id', userId);
+
+    // 2. Cerrar sesión (el trigger de Supabase Auth elimina el usuario de auth.users)
+    await supabase.auth.signOut();
+    setProfile(null);
+    setSession(null);
+  };
+
   return (
     <AuthContext.Provider value={{
       session, user: session?.user ?? null, profile,
       isLoading, isAuthenticated: !!session, isWarmingUp,
-      signIn, signUp, signOut, updateProfile, refreshProfile,
+      signIn, signUp, signOut, updateProfile, refreshProfile, deleteAccount,
     }}>
       {children}
     </AuthContext.Provider>
