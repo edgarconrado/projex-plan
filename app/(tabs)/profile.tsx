@@ -282,7 +282,7 @@ export default function ProfileScreen() {
 
         <Text style={[typography.label, { color: colors.textMuted, marginTop: Spacing.xl, marginBottom: Spacing.sm }]}>Aplicación</Text>
         <View style={{ backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, paddingHorizontal: Spacing.lg }}>
-          <SettingRow colors={colors} icon="information-circle-outline" label="Versión" value="1.0.0" />
+          <SettingRow colors={colors} icon="information-circle-outline" label="Versión" value="1.2.0" />
           <Divider style={{ marginVertical: 0 }} />
           <SettingRow colors={colors} icon="help-circle-outline" label="Soporte" onPress={() => Alert.alert('Soporte', 'Contacta a edgarconrado23@gmail.com')} />
           <Divider style={{ marginVertical: 0 }} />

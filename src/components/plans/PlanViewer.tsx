@@ -22,6 +22,7 @@ import { Colors, Typography, Spacing, Radius } from '../../lib/theme';
 import { useAuth } from '../../lib/AuthContext';
 import { ReferenceModal } from './ReferenceModal';
 import { ImageViewerModal } from './ImageViewerModal';
+import { PlanReaderModal } from './PlanReaderModal';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const VIEWER_H = SCREEN_H * 0.65;
@@ -175,6 +176,9 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
   const [scaleModalVisible, setScaleModalVisible] = useState(false);
   useEffect(() => { setPlanScale(plan.scale ?? '1:100'); }, [plan.scale]);
 
+  const [readerVisible, setReaderVisible] = useState(false);
+  const [showSharpHint, setShowSharpHint] = useState(false);
+
   // Medición de DOS TOQUES (tap-tap), no arrastre continuo:
   // 1er toque = inicio, mueves el dedo y ves la línea en vivo (onTouchMove),
   // 2do toque = fin, se calcula y guarda automáticamente. Sin modal.
@@ -267,6 +271,7 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
 
       onPanResponderRelease: (evt, gestureState) => {
         initialPinchDistance.current = null;
+        if (currentScale.current > 2) setShowSharpHint(true);
         if (currentScale.current > 1) {
           currentTranslate.current = {
             x: currentTranslate.current.x + gestureState.dx,
@@ -690,133 +695,133 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
                   ],
                 }}
               >
-              {pdfDownloadError ? (
-                <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a', gap: Spacing.md }}>
-                  <Ionicons name="alert-circle-outline" size={32} color={Colors.danger} />
-                  <Text style={[Typography.bodySmall, { color: Colors.textMuted }]}>No se pudo descargar el PDF</Text>
-                </View>
-              ) : localPdfPath ? (
-                Pdf ? (
-                Pdf ? (
-                <Pdf
-                  source={{ uri: localPdfPath, cache: false }}
-                  style={{ width: SCREEN_W, height: VIEWER_H, backgroundColor: '#1a1a1a' }}
-                  onLoadComplete={() => setImgLoaded(true)}
-                  onPageChanged={(page) => setCurrentPage(page)}
-                  onError={(error) => {
-                    console.warn('[PlanViewer] Error renderizando PDF:', error);
-                    Alert.alert('Error', 'No se pudo mostrar el PDF descargado.');
-                  }}
-                  enablePaging={false}
-                  horizontal={false}
-                  fitPolicy={0}
-                  minScale={1}
-                  maxScale={1}
-                  scale={1}
-                  enableDoubleTapZoom
-                />
-              ) : (
-                <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a', gap: 12 }}>
-                  <Ionicons name="document-outline" size={48} color={Colors.textMuted} />
-                  <Text style={[Typography.bodySmall, { color: Colors.textMuted, textAlign: 'center', paddingHorizontal: 32 }]}>
-                    El visor de PDF no está disponible en Expo Go.{' '}Usa el build de producción para ver planos PDF.
-                  </Text>
-                </View>
-              )
-              ) : (
-                <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a', gap: 12 }}>
-                  <Ionicons name="document-outline" size={48} color={Colors.textMuted} />
-                  <Text style={[Typography.bodySmall, { color: Colors.textMuted, textAlign: 'center', paddingHorizontal: 32 }]}>
-                    El visor de PDF no está disponible en Expo Go.{' '}Usa el build de producción para ver planos PDF.
-                  </Text>
-                </View>
-              )
-              ) : (
-                <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a' }}>
-                  <ActivityIndicator color={Colors.primary} />
-                </View>
-              )}
-              {!imgLoaded && (
-                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-                  <ActivityIndicator color={Colors.primary} />
-                </View>
-              )}
-
-              {annotations.map((ann) => {
-                if (ann.type === 'pin' && ann.point_x != null && ann.point_y != null) {
-                  return (
-                    <TouchableOpacity
-                      key={ann.id}
-                      onPress={() => handleAnnotationPress(ann)}
-                      style={{
-                        position: 'absolute',
-                        left: ann.point_x * imageSize.width - 14,
-                        top: ann.point_y * imageSize.height - 14,
-                        width: 28, height: 28, borderRadius: 14,
-                        backgroundColor: ann.color,
-                        alignItems: 'center', justifyContent: 'center',
-                        borderWidth: 2, borderColor: '#fff',
-                        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
-                      }}
-                    >
-                      <Ionicons name="pin" size={14} color="#fff" />
-                    </TouchableOpacity>
-                  );
-                }
-                if (ann.type === 'reference' && ann.point_x != null && ann.point_y != null) {
-                  const hasThumbnail = !!ann.attachment_thumbnail;
-                  return (
-                    <TouchableOpacity
-                      key={ann.id}
-                      onPress={() => handleAnnotationPress(ann)}
-                      style={{
-                        position: 'absolute',
-                        left: ann.point_x * imageSize.width - 16,
-                        top: ann.point_y * imageSize.height - 16,
-                        width: 32, height: 32, borderRadius: 16,
-                        backgroundColor: hasThumbnail ? undefined : ann.color,
-                        alignItems: 'center', justifyContent: 'center',
-                        borderWidth: 2, borderColor: '#fff',
-                        overflow: 'hidden',
-                        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
-                      }}
-                    >
-                      {hasThumbnail ? (
-                        <Image source={{ uri: ann.attachment_thumbnail! }} style={{ width: 32, height: 32 }} />
-                      ) : (
-                        <Ionicons name="document-attach" size={14} color="#fff" />
-                      )}
-                    </TouchableOpacity>
-                  );
-                }
-                if (ann.type === 'text' && ann.position_x != null && ann.position_y != null) {
-                  return (
-                    <TouchableOpacity
-                      key={ann.id}
-                      onPress={() => handleAnnotationPress(ann)}
-                      style={{
-                        position: 'absolute',
-                        left: ann.position_x * imageSize.width,
-                        top: ann.position_y * imageSize.height,
-                        backgroundColor: `${ann.color}CC`,
-                        borderRadius: Radius.sm,
-                        paddingHorizontal: 8, paddingVertical: 3,
-                        maxWidth: 140,
-                      }}
-                    >
-                      <Text style={{ fontSize: 11, color: '#fff', fontWeight: '600' }}>
-                        {ann.text}
+                {pdfDownloadError ? (
+                  <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a', gap: Spacing.md }}>
+                    <Ionicons name="alert-circle-outline" size={32} color={Colors.danger} />
+                    <Text style={[Typography.bodySmall, { color: Colors.textMuted }]}>No se pudo descargar el PDF</Text>
+                  </View>
+                ) : localPdfPath ? (
+                  Pdf ? (
+                    Pdf ? (
+                      <Pdf
+                        source={{ uri: localPdfPath, cache: false }}
+                        style={{ width: SCREEN_W, height: VIEWER_H, backgroundColor: '#1a1a1a' }}
+                        onLoadComplete={() => setImgLoaded(true)}
+                        onPageChanged={(page) => setCurrentPage(page)}
+                        onError={(error) => {
+                          console.warn('[PlanViewer] Error renderizando PDF:', error);
+                          Alert.alert('Error', 'No se pudo mostrar el PDF descargado.');
+                        }}
+                        enablePaging={false}
+                        horizontal={false}
+                        fitPolicy={0}
+                        minScale={1}
+                        maxScale={1}
+                        scale={1}
+                        enableDoubleTapZoom
+                      />
+                    ) : (
+                      <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a', gap: 12 }}>
+                        <Ionicons name="document-outline" size={48} color={Colors.textMuted} />
+                        <Text style={[Typography.bodySmall, { color: Colors.textMuted, textAlign: 'center', paddingHorizontal: 32 }]}>
+                          El visor de PDF no está disponible en Expo Go.{' '}Usa el build de producción para ver planos PDF.
+                        </Text>
+                      </View>
+                    )
+                  ) : (
+                    <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a', gap: 12 }}>
+                      <Ionicons name="document-outline" size={48} color={Colors.textMuted} />
+                      <Text style={[Typography.bodySmall, { color: Colors.textMuted, textAlign: 'center', paddingHorizontal: 32 }]}>
+                        El visor de PDF no está disponible en Expo Go.{' '}Usa el build de producción para ver planos PDF.
                       </Text>
-                    </TouchableOpacity>
-                  );
-                }
-                return null;
-              })}
+                    </View>
+                  )
+                ) : (
+                  <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a' }}>
+                    <ActivityIndicator color={Colors.primary} />
+                  </View>
+                )}
+                {!imgLoaded && (
+                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+                    <ActivityIndicator color={Colors.primary} />
+                  </View>
+                )}
 
-              {renderSVGOverlay()}
-              {renderMeasureHitboxes()}
+                {annotations.map((ann) => {
+                  if (ann.type === 'pin' && ann.point_x != null && ann.point_y != null) {
+                    return (
+                      <TouchableOpacity
+                        key={ann.id}
+                        onPress={() => handleAnnotationPress(ann)}
+                        style={{
+                          position: 'absolute',
+                          left: ann.point_x * imageSize.width - 14,
+                          top: ann.point_y * imageSize.height - 14,
+                          width: 28, height: 28, borderRadius: 14,
+                          backgroundColor: ann.color,
+                          alignItems: 'center', justifyContent: 'center',
+                          borderWidth: 2, borderColor: '#fff',
+                          shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
+                        }}
+                      >
+                        <Ionicons name="pin" size={14} color="#fff" />
+                      </TouchableOpacity>
+                    );
+                  }
+                  if (ann.type === 'reference' && ann.point_x != null && ann.point_y != null) {
+                    const hasThumbnail = !!ann.attachment_thumbnail;
+                    return (
+                      <TouchableOpacity
+                        key={ann.id}
+                        onPress={() => handleAnnotationPress(ann)}
+                        style={{
+                          position: 'absolute',
+                          left: ann.point_x * imageSize.width - 16,
+                          top: ann.point_y * imageSize.height - 16,
+                          width: 32, height: 32, borderRadius: 16,
+                          backgroundColor: hasThumbnail ? undefined : ann.color,
+                          alignItems: 'center', justifyContent: 'center',
+                          borderWidth: 2, borderColor: '#fff',
+                          overflow: 'hidden',
+                          shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
+                        }}
+                      >
+                        {hasThumbnail ? (
+                          <Image source={{ uri: ann.attachment_thumbnail! }} style={{ width: 32, height: 32 }} />
+                        ) : (
+                          <Ionicons name="document-attach" size={14} color="#fff" />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  }
+                  if (ann.type === 'text' && ann.position_x != null && ann.position_y != null) {
+                    return (
+                      <TouchableOpacity
+                        key={ann.id}
+                        onPress={() => handleAnnotationPress(ann)}
+                        style={{
+                          position: 'absolute',
+                          left: ann.position_x * imageSize.width,
+                          top: ann.position_y * imageSize.height,
+                          backgroundColor: `${ann.color}CC`,
+                          borderRadius: Radius.sm,
+                          paddingHorizontal: 8, paddingVertical: 3,
+                          maxWidth: 140,
+                        }}
+                      >
+                        <Text style={{ fontSize: 11, color: '#fff', fontWeight: '600' }}>
+                          {ann.text}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  }
+                  return null;
+                })}
+
+                {renderSVGOverlay()}
+                {renderMeasureHitboxes()}
               </Animated.View>
             </View>
           ) : isPdf ? (
@@ -954,92 +959,92 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
                   ],
                 }}
               >
-              <Image
-                source={{ uri: plan.file_url }}
-                style={{ width: SCREEN_W, height: VIEWER_H, resizeMode: 'contain' }}
-                onLoad={() => setImgLoaded(true)}
-              />
-              {!imgLoaded && (
-                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-                  <ActivityIndicator color={Colors.primary} />
-                </View>
-              )}
+                <Image
+                  source={{ uri: plan.file_url }}
+                  style={{ width: SCREEN_W, height: VIEWER_H, resizeMode: 'contain' }}
+                  onLoad={() => setImgLoaded(true)}
+                />
+                {!imgLoaded && (
+                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+                    <ActivityIndicator color={Colors.primary} />
+                  </View>
+                )}
 
-              {annotations.map((ann) => {
-                if (ann.type === 'pin' && ann.point_x != null && ann.point_y != null) {
-                  return (
-                    <TouchableOpacity
-                      key={ann.id}
-                      onPress={() => handleAnnotationPress(ann)}
-                      style={{
-                        position: 'absolute',
-                        left: ann.point_x * imageSize.width - 14,
-                        top: ann.point_y * imageSize.height - 14,
-                        width: 28, height: 28, borderRadius: 14,
-                        backgroundColor: ann.color,
-                        alignItems: 'center', justifyContent: 'center',
-                        borderWidth: 2, borderColor: '#fff',
-                        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
-                      }}
-                    >
-                      <Ionicons name="pin" size={14} color="#fff" />
-                    </TouchableOpacity>
-                  );
-                }
-                if (ann.type === 'reference' && ann.point_x != null && ann.point_y != null) {
-                  const hasThumbnail = !!ann.attachment_thumbnail;
-                  return (
-                    <TouchableOpacity
-                      key={ann.id}
-                      onPress={() => handleAnnotationPress(ann)}
-                      style={{
-                        position: 'absolute',
-                        left: ann.point_x * imageSize.width - 16,
-                        top: ann.point_y * imageSize.height - 16,
-                        width: 32, height: 32, borderRadius: 16,
-                        backgroundColor: hasThumbnail ? undefined : ann.color,
-                        alignItems: 'center', justifyContent: 'center',
-                        borderWidth: 2, borderColor: '#fff',
-                        overflow: 'hidden',
-                        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
-                      }}
-                    >
-                      {hasThumbnail ? (
-                        <Image source={{ uri: ann.attachment_thumbnail! }} style={{ width: 32, height: 32 }} />
-                      ) : (
-                        <Ionicons name="document-attach" size={14} color="#fff" />
-                      )}
-                    </TouchableOpacity>
-                  );
-                }
-                if (ann.type === 'text' && ann.position_x != null && ann.position_y != null) {
-                  return (
-                    <TouchableOpacity
-                      key={ann.id}
-                      onPress={() => handleAnnotationPress(ann)}
-                      style={{
-                        position: 'absolute',
-                        left: ann.position_x * imageSize.width,
-                        top: ann.position_y * imageSize.height,
-                        backgroundColor: `${ann.color}CC`,
-                        borderRadius: Radius.sm,
-                        paddingHorizontal: 8, paddingVertical: 3,
-                        maxWidth: 140,
-                      }}
-                    >
-                      <Text style={{ fontSize: 11, color: '#fff', fontWeight: '600' }}>
-                        {ann.text}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                }
-                return null;
-              })}
+                {annotations.map((ann) => {
+                  if (ann.type === 'pin' && ann.point_x != null && ann.point_y != null) {
+                    return (
+                      <TouchableOpacity
+                        key={ann.id}
+                        onPress={() => handleAnnotationPress(ann)}
+                        style={{
+                          position: 'absolute',
+                          left: ann.point_x * imageSize.width - 14,
+                          top: ann.point_y * imageSize.height - 14,
+                          width: 28, height: 28, borderRadius: 14,
+                          backgroundColor: ann.color,
+                          alignItems: 'center', justifyContent: 'center',
+                          borderWidth: 2, borderColor: '#fff',
+                          shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
+                        }}
+                      >
+                        <Ionicons name="pin" size={14} color="#fff" />
+                      </TouchableOpacity>
+                    );
+                  }
+                  if (ann.type === 'reference' && ann.point_x != null && ann.point_y != null) {
+                    const hasThumbnail = !!ann.attachment_thumbnail;
+                    return (
+                      <TouchableOpacity
+                        key={ann.id}
+                        onPress={() => handleAnnotationPress(ann)}
+                        style={{
+                          position: 'absolute',
+                          left: ann.point_x * imageSize.width - 16,
+                          top: ann.point_y * imageSize.height - 16,
+                          width: 32, height: 32, borderRadius: 16,
+                          backgroundColor: hasThumbnail ? undefined : ann.color,
+                          alignItems: 'center', justifyContent: 'center',
+                          borderWidth: 2, borderColor: '#fff',
+                          overflow: 'hidden',
+                          shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
+                        }}
+                      >
+                        {hasThumbnail ? (
+                          <Image source={{ uri: ann.attachment_thumbnail! }} style={{ width: 32, height: 32 }} />
+                        ) : (
+                          <Ionicons name="document-attach" size={14} color="#fff" />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  }
+                  if (ann.type === 'text' && ann.position_x != null && ann.position_y != null) {
+                    return (
+                      <TouchableOpacity
+                        key={ann.id}
+                        onPress={() => handleAnnotationPress(ann)}
+                        style={{
+                          position: 'absolute',
+                          left: ann.position_x * imageSize.width,
+                          top: ann.position_y * imageSize.height,
+                          backgroundColor: `${ann.color}CC`,
+                          borderRadius: Radius.sm,
+                          paddingHorizontal: 8, paddingVertical: 3,
+                          maxWidth: 140,
+                        }}
+                      >
+                        <Text style={{ fontSize: 11, color: '#fff', fontWeight: '600' }}>
+                          {ann.text}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  }
+                  return null;
+                })}
 
-              {renderSVGOverlay()}
-              {renderMeasureHitboxes()}
+                {renderSVGOverlay()}
+                {renderMeasureHitboxes()}
               </Animated.View>
             </View>
           ) : (
@@ -1152,8 +1157,8 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
             <Text style={[Typography.bodySmall, { fontWeight: '600' }]}>
               {selectedAnnotation.type === 'pin' ? '📍 Pin'
                 : selectedAnnotation.type === 'measure' ? '📏 Medición'
-                : selectedAnnotation.type === 'reference' ? '📎 Referencia'
-                : '📝 Texto'}
+                  : selectedAnnotation.type === 'reference' ? '📎 Referencia'
+                    : '📝 Texto'}
               {selectedAnnotation.label ? ` · ${selectedAnnotation.label}` : ''}
               {selectedAnnotation.text ? ` · ${selectedAnnotation.text}` : ''}
               {selectedAnnotation.real_dist ? ` · ${selectedAnnotation.real_dist}` : ''}
@@ -1234,6 +1239,30 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
         imageUrl={viewerImage?.url ?? null}
         fileName={viewerImage?.name}
         onClose={() => setViewerImage(null)}
+      />
+
+      {showSharpHint && !readerVisible && (
+        <TouchableOpacity
+          onPress={() => { setReaderVisible(true); setShowSharpHint(false); }}
+          style={{
+            position: 'absolute', bottom: 24, alignSelf: 'center',
+            flexDirection: 'row', alignItems: 'center', gap: 8,
+            paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999,
+            backgroundColor: Colors.primary,
+          }}
+        >
+          <Ionicons name="search" size={16} color="#000" />
+          <Text style={{ color: '#000', fontWeight: '700', fontSize: 13 }}>
+            Ver nítido
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      <PlanReaderModal
+        visible={readerVisible}
+        onClose={() => setReaderVisible(false)}
+        plan={plan}
+        pdfPath={localPdfPath}
       />
     </View>
   );
