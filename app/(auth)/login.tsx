@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
-import { Link } from 'expo-router';
+import { View, Text, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Image } from 'react-native';
+import { Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/lib/AuthContext';
-import { Colors, Typography, Spacing, Radius } from '../../src/lib/theme';
+import { Spacing, Radius } from '../../src/lib/theme';
+import { useTheme } from '../../src/lib/ThemeContext';
 import { Button, Input } from '../../src/components/ui';
 
 export default function LoginScreen() {
+  const { colors, typography } = useTheme();
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,35 +28,39 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, padding: Spacing.xl }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={{ alignItems: 'center', marginTop: 80, marginBottom: 48 }}>
-          <View style={{ width: 72, height: 72, borderRadius: Radius.xl, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.lg }}>
-            <Ionicons name="construct" size={36} color={Colors.textInverse} />
-          </View>
-          <Text style={[Typography.h1, { color: Colors.primary }]}>Projex Plan</Text>
-          <Text style={[Typography.bodySmall, { marginTop: 6 }]}>Gestión de proyectos de construcción</Text>
+          <Image
+            source={require('../../assets/icon.png')}
+            style={{ width: 88, height: 88, borderRadius: Radius.xl, marginBottom: Spacing.lg }}
+          />
+          <Text style={[typography.h1, { color: colors.primary }]}>Projex Plan</Text>
+          <Text style={[typography.bodySmall, { marginTop: 6 }]}>Gestión de proyectos de construcción</Text>
         </View>
 
         <View style={{ gap: Spacing.lg }}>
-          <Text style={Typography.h3}>Iniciar sesión</Text>
+          <Text style={typography.h3}>Iniciar sesión</Text>
           {error ? (
-            <View style={{ backgroundColor: Colors.dangerMuted, borderRadius: Radius.md, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, borderWidth: 0.5, borderColor: Colors.danger }}>
-              <Ionicons name="alert-circle" size={16} color={Colors.danger} />
-              <Text style={[Typography.bodySmall, { color: Colors.danger, flex: 1 }]}>{error}</Text>
+            <View style={{ backgroundColor: colors.dangerMuted, borderRadius: Radius.md, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, borderWidth: 0.5, borderColor: colors.danger }}>
+              <Ionicons name="alert-circle" size={16} color={colors.danger} />
+              <Text style={[typography.bodySmall, { color: colors.danger, flex: 1 }]}>{error}</Text>
             </View>
           ) : null}
-          <Input label="Correo electrónico" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" placeholder="tu@correo.com" leftIcon={<Ionicons name="mail-outline" size={18} color={Colors.textMuted} />} />
+          <Input label="Correo electrónico" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" placeholder="tu@correo.com" leftIcon={<Ionicons name="mail-outline" size={18} color={colors.textMuted} />} />
           <Input label="Contraseña" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} placeholder="••••••••"
-            leftIcon={<Ionicons name="lock-closed-outline" size={18} color={Colors.textMuted} />}
-            rightIcon={<TouchableOpacity onPress={() => setShowPassword(v => !v)}><Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textMuted} /></TouchableOpacity>}
+            leftIcon={<Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} />}
+            rightIcon={<TouchableOpacity onPress={() => setShowPassword(v => !v)}><Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.textMuted} /></TouchableOpacity>}
           />
+          <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password' as never)} style={{ alignSelf: 'flex-end' }}>
+            <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>¿Olvidaste tu contraseña?</Text>
+          </TouchableOpacity>
           <Button label="Iniciar sesión" onPress={handleLogin} loading={loading} size="lg" style={{ marginTop: Spacing.sm }} />
           <View style={{ alignItems: 'center', marginTop: Spacing.lg }}>
-            <Text style={[Typography.bodySmall, { color: Colors.textSecondary }]}>
+            <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>
               ¿No tienes cuenta?{' '}
               <Link href="/(auth)/register" asChild>
-                <Text style={{ color: Colors.primary, fontWeight: '600' }}>Regístrate</Text>
+                <Text style={{ color: colors.primary, fontWeight: '600' }}>Regístrate</Text>
               </Link>
             </Text>
           </View>

@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, Modal, ScrollView,
   TouchableOpacity, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Project, ProjectStatus, CreateProjectDTO } from '../../types';
-import { Colors, Typography, Spacing, Radius } from '../../lib/theme';
+import { Spacing, Radius } from '../../lib/theme';
+import { useTheme } from '../../lib/ThemeContext';
 import { Button, Input } from '../ui';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 interface ProjectFormModalProps {
   visible: boolean;
@@ -27,6 +30,7 @@ const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
 export function ProjectFormModal({
   visible, onClose, onSubmit, initialData,
 }: ProjectFormModalProps) {
+  const { colors, typography } = useTheme();
   const isEditing = !!initialData;
 
   const [name, setName] = useState(initialData?.name ?? '');
@@ -36,8 +40,23 @@ export function ProjectFormModal({
   const [address, setAddress] = useState(initialData?.address ?? '');
   const [budget, setBudget] = useState(initialData?.budget ? String(initialData.budget) : '');
   const [deadline, setDeadline] = useState(initialData?.deadline ?? '');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Resetear campos cada vez que el modal se abre o cambia el proyecto a editar
+  useEffect(() => {
+    if (visible) {
+      setName(initialData?.name ?? '');
+      setDescription(initialData?.description ?? '');
+      setStatus(initialData?.status ?? 'planning');
+      setCity(initialData?.city ?? '');
+      setAddress(initialData?.address ?? '');
+      setBudget(initialData?.budget ? String(initialData.budget) : '');
+      setDeadline(initialData?.deadline ?? '');
+      setError('');
+    }
+  }, [visible, initialData?.id]);
 
   const handleSubmit = async () => {
     if (!name.trim()) { setError('El nombre es requerido'); return; }
@@ -64,19 +83,20 @@ export function ProjectFormModal({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <KeyboardAvoidingView
-        style={{ flex: 1, backgroundColor: Colors.background }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1, backgroundColor: colors.background }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/* Header */}
         <View style={{
           flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-          padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: Colors.border,
+          padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: colors.border,
         }}>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color={Colors.textSecondary} />
+            <Ionicons name="close" size={24} color={colors.textSecondary} />
           </TouchableOpacity>
-          <Text style={Typography.h4}>{isEditing ? 'Editar proyecto' : 'Nuevo proyecto'}</Text>
+          <Text style={typography.h4}>{isEditing ? 'Editar proyecto' : 'Nuevo proyecto'}</Text>
           <View style={{ width: 24 }} />
         </View>
 
@@ -86,8 +106,8 @@ export function ProjectFormModal({
           showsVerticalScrollIndicator={false}
         >
           {error ? (
-            <View style={{ backgroundColor: Colors.dangerMuted, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 0.5, borderColor: Colors.danger }}>
-              <Text style={[Typography.bodySmall, { color: Colors.danger }]}>{error}</Text>
+            <View style={{ backgroundColor: colors.dangerMuted, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 0.5, borderColor: colors.danger }}>
+              <Text style={[typography.bodySmall, { color: colors.danger }]}>{error}</Text>
             </View>
           ) : null}
 
@@ -96,7 +116,7 @@ export function ProjectFormModal({
             value={name}
             onChangeText={setName}
             placeholder="Ej. Torre Reforma Norte"
-            leftIcon={<Ionicons name="briefcase-outline" size={18} color={Colors.textMuted} />}
+            leftIcon={<Ionicons name="briefcase-outline" size={18} color={colors.textMuted} />}
           />
 
           <Input
@@ -111,7 +131,7 @@ export function ProjectFormModal({
 
           {/* Status */}
           <View style={{ gap: 8 }}>
-            <Text style={[Typography.label, { color: Colors.textSecondary }]}>Estado</Text>
+            <Text style={[typography.label, { color: colors.textSecondary }]}>Estado</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {STATUS_OPTIONS.map((opt) => (
                 <TouchableOpacity
@@ -121,13 +141,13 @@ export function ProjectFormModal({
                     paddingHorizontal: 14, paddingVertical: 7,
                     borderRadius: Radius.full,
                     borderWidth: 1,
-                    borderColor: status === opt.value ? Colors.primary : Colors.border,
-                    backgroundColor: status === opt.value ? Colors.primaryMuted : 'transparent',
+                    borderColor: status === opt.value ? colors.primary : colors.border,
+                    backgroundColor: status === opt.value ? colors.primaryMuted : 'transparent',
                   }}
                 >
                   <Text style={{
                     fontSize: 13, fontWeight: '500',
-                    color: status === opt.value ? Colors.primary : Colors.textSecondary,
+                    color: status === opt.value ? colors.primary : colors.textSecondary,
                   }}>
                     {opt.label}
                   </Text>
@@ -141,7 +161,7 @@ export function ProjectFormModal({
             value={city}
             onChangeText={setCity}
             placeholder="Guadalajara"
-            leftIcon={<Ionicons name="location-outline" size={18} color={Colors.textMuted} />}
+            leftIcon={<Ionicons name="location-outline" size={18} color={colors.textMuted} />}
           />
 
           <Input
@@ -149,7 +169,7 @@ export function ProjectFormModal({
             value={address}
             onChangeText={setAddress}
             placeholder="Av. Reforma 123"
-            leftIcon={<Ionicons name="map-outline" size={18} color={Colors.textMuted} />}
+            leftIcon={<Ionicons name="map-outline" size={18} color={colors.textMuted} />}
           />
 
           <Input
@@ -158,16 +178,48 @@ export function ProjectFormModal({
             onChangeText={setBudget}
             placeholder="0.00"
             keyboardType="numeric"
-            leftIcon={<Ionicons name="cash-outline" size={18} color={Colors.textMuted} />}
+            leftIcon={<Ionicons name="cash-outline" size={18} color={colors.textMuted} />}
           />
 
-          <Input
-            label="Fecha límite (YYYY-MM-DD)"
-            value={deadline}
-            onChangeText={setDeadline}
-            placeholder="2025-12-31"
-            leftIcon={<Ionicons name="calendar-outline" size={18} color={Colors.textMuted} />}
-          />
+          <View>
+            <Text style={[typography.bodySmall, { color: colors.textSecondary, marginBottom: 6 }]}>Fecha límite</Text>
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(true)}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+                backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md,
+                borderWidth: 0.5, borderColor: colors.border,
+                paddingHorizontal: Spacing.md, paddingVertical: 14,
+              }}
+            >
+              <Ionicons name="calendar-outline" size={18} color={colors.textMuted} />
+              <Text style={{ color: deadline ? colors.textPrimary : colors.textMuted, fontSize: 15 }}>
+                {deadline
+                  ? new Date(deadline + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
+                  : 'Selecciona una fecha'}
+              </Text>
+              {deadline ? (
+                <TouchableOpacity onPress={() => setDeadline('')} style={{ marginLeft: 'auto' }}>
+                  <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              ) : null}
+            </TouchableOpacity>
+          </View>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={deadline ? new Date(deadline + 'T00:00:00') : new Date()}
+              mode="date"
+              display="default"
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(false);
+                if (event.type === 'set' && selectedDate) {
+                  const iso = selectedDate.toISOString().split('T')[0];
+                  setDeadline(iso);
+                }
+              }}
+            />
+          )}
 
           <Button
             label={isEditing ? 'Guardar cambios' : 'Crear proyecto'}
@@ -178,6 +230,7 @@ export function ProjectFormModal({
           />
         </ScrollView>
       </KeyboardAvoidingView>
+      </SafeAreaView>
     </Modal>
   );
 }

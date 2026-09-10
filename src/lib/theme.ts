@@ -1,6 +1,8 @@
 import { TextStyle, ViewStyle } from 'react-native';
 
-export const Colors = {
+// Paleta oscura — la original de la app, ahora también exportada como DarkColors
+// para que el ThemeContext pueda alternar entre ella y LightColors.
+export const DarkColors = {
   primary: '#FFD700',
   primaryDark: '#E6C200',
   primaryLight: '#FFE44D',
@@ -35,6 +37,56 @@ export const Colors = {
   overlay: 'rgba(0,0,0,0.7)',
 } as const;
 
+// Paleta clara — mismos acentos (amarillo, estados, prioridades) sobre fondos
+// claros y texto oscuro, manteniendo el mismo "significado" de cada color.
+export const LightColors = {
+  primary: '#CC9900',
+  primaryDark: '#A87D00',
+  primaryLight: '#E6B800',
+  primaryMuted: 'rgba(204, 153, 0, 0.12)',
+  background: '#FAFAFA',
+  surface: '#FFFFFF',
+  surfaceSecondary: '#F2F2F2',
+  surfaceTertiary: '#E8E8E8',
+  border: '#DDDDDD',
+  borderLight: '#CCCCCC',
+  textPrimary: '#111111',
+  textSecondary: '#555555',
+  textMuted: '#999999',
+  textInverse: '#FFFFFF',
+  statusPlanning: '#6366F1',
+  statusActive: '#CC9900',
+  statusOnHold: '#D97706',
+  statusCompleted: '#16A34A',
+  statusCancelled: '#6B7280',
+  priorityLow: '#16A34A',
+  priorityMedium: '#D97706',
+  priorityHigh: '#DC2626',
+  priorityUrgent: '#B91C1C',
+  success: '#16A34A',
+  successMuted: 'rgba(22,163,74,0.12)',
+  warning: '#D97706',
+  warningMuted: 'rgba(217,119,6,0.12)',
+  danger: '#DC2626',
+  dangerMuted: 'rgba(220,38,38,0.12)',
+  info: '#2563EB',
+  infoMuted: 'rgba(37,99,235,0.12)',
+  overlay: 'rgba(0,0,0,0.5)',
+} as const;
+
+export type ThemeColors = typeof DarkColors;
+export type ThemeMode = 'dark' | 'light';
+
+export function getThemeColors(mode: ThemeMode): ThemeColors {
+  return mode === 'light' ? LightColors : DarkColors;
+}
+
+// Colors sigue exportado igual que siempre (apunta a la paleta oscura) para
+// que ninguna pantalla existente se rompa. Las pantallas que quieras hacer
+// reactivas al tema deben migrar a `const { colors } = useTheme()` en vez de
+// importar `Colors` directamente.
+export const Colors = DarkColors;
+
 export const Typography = {
   h1: { fontSize: 28, fontWeight: '700', color: Colors.textPrimary, letterSpacing: -0.5 } as TextStyle,
   h2: { fontSize: 22, fontWeight: '600', color: Colors.textPrimary, letterSpacing: -0.3 } as TextStyle,
@@ -46,6 +98,22 @@ export const Typography = {
   label: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 } as TextStyle,
   button: { fontSize: 15, fontWeight: '600', letterSpacing: 0.2 } as TextStyle,
 } as const;
+
+// Construye un objeto Typography ligado a una paleta específica — útil dentro
+// de pantallas migradas al ThemeContext, donde los colores cambian en runtime.
+export function getTypography(colors: ThemeColors) {
+  return {
+    h1: { fontSize: 28, fontWeight: '700', color: colors.textPrimary, letterSpacing: -0.5 } as TextStyle,
+    h2: { fontSize: 22, fontWeight: '600', color: colors.textPrimary, letterSpacing: -0.3 } as TextStyle,
+    h3: { fontSize: 18, fontWeight: '600', color: colors.textPrimary } as TextStyle,
+    h4: { fontSize: 16, fontWeight: '600', color: colors.textPrimary } as TextStyle,
+    body: { fontSize: 15, fontWeight: '400', color: colors.textPrimary, lineHeight: 22 } as TextStyle,
+    bodySmall: { fontSize: 13, fontWeight: '400', color: colors.textSecondary, lineHeight: 18 } as TextStyle,
+    caption: { fontSize: 11, fontWeight: '400', color: colors.textMuted } as TextStyle,
+    label: { fontSize: 12, fontWeight: '500', color: colors.textSecondary, textTransform: 'uppercase' as const, letterSpacing: 0.8 } as TextStyle,
+    button: { fontSize: 15, fontWeight: '600', letterSpacing: 0.2 } as TextStyle,
+  };
+}
 
 export const Spacing = {
   xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32,
@@ -65,26 +133,26 @@ export const Shadows = {
   } as ViewStyle,
 };
 
-export function getStatusColor(status: string): string {
+export function getStatusColor(status: string, colors: ThemeColors = Colors): string {
   const map: Record<string, string> = {
-    planning: Colors.statusPlanning,
-    in_progress: Colors.statusActive,
-    on_hold: Colors.statusOnHold,
-    in_review: Colors.info,
-    completed: Colors.statusCompleted,
-    cancelled: Colors.statusCancelled,
+    planning: colors.statusPlanning,
+    in_progress: colors.statusActive,
+    on_hold: colors.statusOnHold,
+    in_review: colors.info,
+    completed: colors.statusCompleted,
+    cancelled: colors.statusCancelled,
   };
-  return map[status] ?? Colors.textMuted;
+  return map[status] ?? colors.textMuted;
 }
 
-export function getPriorityColor(priority: string): string {
+export function getPriorityColor(priority: string, colors: ThemeColors = Colors): string {
   const map: Record<string, string> = {
-    low: Colors.priorityLow,
-    medium: Colors.priorityMedium,
-    high: Colors.priorityHigh,
-    urgent: Colors.priorityUrgent,
+    low: colors.priorityLow,
+    medium: colors.priorityMedium,
+    high: colors.priorityHigh,
+    critical: colors.priorityUrgent,
   };
-  return map[priority] ?? Colors.textMuted;
+  return map[priority] ?? colors.textMuted;
 }
 
 export function getStatusLabel(status: string): string {
@@ -98,7 +166,7 @@ export function getStatusLabel(status: string): string {
 
 export function getPriorityLabel(priority: string): string {
   const map: Record<string, string> = {
-    low: 'Baja', medium: 'Media', high: 'Alta', urgent: 'Urgente',
+    low: 'Baja', medium: 'Media', high: 'Alta', critical: 'Crítica',
   };
   return map[priority] ?? priority;
 }

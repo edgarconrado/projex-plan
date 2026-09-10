@@ -8,13 +8,17 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useMessages } from '../../src/hooks/useChat';
 import { ChatBubble } from '../../src/components/chat/ChatBubble';
-import { Colors, Typography, Spacing, Radius } from '../../src/lib/theme';
+import { Spacing, Radius } from '../../src/lib/theme';
+import { useTheme } from '../../src/lib/ThemeContext';
 import { useAuth } from '../../src/lib/AuthContext';
+import { useProjectPermissions } from '../../src/hooks/useProjectPermissions';
 
 export default function ConversationScreen() {
-  const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
+  const { colors, typography } = useTheme();
+  const { id, name, projectId } = useLocalSearchParams<{ id: string; name: string; projectId?: string }>();
   const { user } = useAuth();
   const { messages, isLoading, sendMessage, markAsRead } = useMessages(id ?? '');
+  const perms = useProjectPermissions(projectId ?? null, null);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const listRef = useRef<FlatList>(null);
@@ -31,31 +35,34 @@ export default function ConversationScreen() {
 
   const handleSend = async () => {
     if (!text.trim() || sending) return;
+    const messageText = text.trim();
+    setText(''); // Limpiar inmediatamente para feedback visual
     setSending(true);
     try {
-      await sendMessage(text);
-      setText('');
+      await sendMessage(messageText);
+    } catch {
+      setText(messageText); // Restaurar si falla
     } finally {
       setSending(false);
     }
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Header */}
       <View style={{
         flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-        padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: Colors.border,
-        backgroundColor: Colors.surface,
+        padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: colors.border,
+        backgroundColor: colors.surface,
       }}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[Typography.h4]} numberOfLines={1}>{name ?? 'Conversación'}</Text>
+          <Text style={[typography.h4]} numberOfLines={1}>{name ?? 'Conversación'}</Text>
         </View>
         <TouchableOpacity>
-          <Ionicons name="ellipsis-horizontal" size={22} color={Colors.textSecondary} />
+          <Ionicons name="ellipsis-horizontal" size={22} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
@@ -81,8 +88,8 @@ export default function ConversationScreen() {
           ListEmptyComponent={
             !isLoading ? (
               <View style={{ alignItems: 'center', paddingTop: 60, gap: Spacing.md }}>
-                <Ionicons name="chatbubbles-outline" size={48} color={Colors.textMuted} />
-                <Text style={[Typography.bodySmall, { color: Colors.textMuted }]}>
+                <Ionicons name="chatbubbles-outline" size={48} color={colors.textMuted} />
+                <Text style={[typography.bodySmall, { color: colors.textMuted }]}>
                   Sé el primero en escribir
                 </Text>
               </View>
@@ -90,41 +97,47 @@ export default function ConversationScreen() {
           }
         />
 
-        {/* Input */}
-        <View style={{
-          flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm,
-          padding: Spacing.md, borderTopWidth: 0.5, borderTopColor: Colors.border,
-          backgroundColor: Colors.surface,
-        }}>
-          <TextInput
-            value={text}
-            onChangeText={setText}
-            placeholder="Escribe un mensaje..."
-            placeholderTextColor={Colors.textMuted}
-            multiline
-            style={{
-              flex: 1, backgroundColor: Colors.surfaceSecondary,
-              borderRadius: Radius.xl, borderWidth: 0.5, borderColor: Colors.border,
-              paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-              color: Colors.textPrimary, fontSize: 15, maxHeight: 120,
-            }}
-          />
-          <TouchableOpacity
-            onPress={handleSend}
-            disabled={!text.trim() || sending}
-            style={{
-              width: 40, height: 40, borderRadius: 20,
-              backgroundColor: text.trim() ? Colors.primary : Colors.surfaceSecondary,
-              alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <Ionicons
-              name="send"
-              size={18}
-              color={text.trim() ? Colors.textInverse : Colors.textMuted}
+        {/* Input — oculto para Observadores */}
+        {perms.canChat ? (
+          <View style={{
+            flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm,
+            padding: Spacing.md, borderTopWidth: 0.5, borderTopColor: colors.border,
+            backgroundColor: colors.surface,
+          }}>
+            <TextInput
+              value={text}
+              onChangeText={setText}
+              placeholder="Escribe un mensaje..."
+              placeholderTextColor={colors.textMuted}
+              multiline
+              style={{
+                flex: 1, backgroundColor: colors.surfaceSecondary,
+                borderRadius: Radius.xl, borderWidth: 0.5, borderColor: colors.border,
+                paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+                color: colors.textPrimary, fontSize: 15, maxHeight: 120,
+              }}
+            />
+            <TouchableOpacity
+              onPress={handleSend}
+              disabled={!text.trim() || sending}
+              style={{
+                width: 40, height: 40, borderRadius: 20,
+                backgroundColor: text.trim() ? colors.primary : colors.surfaceSecondary,
+                alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Ionicons
+                name="send"
+                size={18}
+              color={text.trim() ? colors.textInverse : colors.textMuted}
             />
           </TouchableOpacity>
         </View>
+        ) : (
+          <View style={{ padding: Spacing.md, borderTopWidth: 0.5, borderTopColor: colors.border, backgroundColor: colors.surfaceSecondary, alignItems: 'center' }}>
+            <Text style={[typography.caption, { color: colors.textMuted }]}>Solo tienes permisos de lectura en este chat</Text>
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

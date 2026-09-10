@@ -1,15 +1,42 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Task, CreateTaskDTO, UpdateTaskDTO } from '../types';
 import { useTaskStore } from '../stores';
 import { useAuth } from '../lib/AuthContext';
 import { notifyUsers, saveNotification } from '../lib/notifications';
+import { cacheTasks, getCachedTasks, queueToggle } from './useOfflineCache';
+import NetInfo from '@react-native-community/netinfo';
+
+let taskChannelInstanceCounter = 0;
+
+// Trae la fila completa de una tarea (con sus relaciones) a partir de su ID.
+// Usado cuando Realtime nos avisa de un INSERT/UPDATE — el payload de
+// postgres_changes solo trae las columnas planas, no los joins.
+async function fetchFullTask(taskId: string): Promise<Task | null> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select(`
+      *,
+      assignee:profiles!tasks_assigned_to_fkey(id, full_name, avatar_url, role),
+      creator:profiles!tasks_created_by_fkey(id, full_name, avatar_url),
+      checklist:task_checklist(*),
+      project:projects(id, name)
+    `)
+    .eq('id', taskId)
+    .single();
+  if (error) return null;
+  return data as Task;
+}
 
 export function useTasks(projectId?: string) {
   const { user } = useAuth();
-  const { tasksByProject, setTasks, upsertTask, removeTask } = useTaskStore();
+  const { tasksByProject, setTasks, upsertTask, removeTask, removeTaskById } = useTaskStore();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const instanceIdRef = useRef<number | null>(null);
+  if (instanceIdRef.current === null) {
+    instanceIdRef.current = taskChannelInstanceCounter++;
+  }
 
   const tasks = projectId ? (tasksByProject[projectId] ?? []) : Object.values(tasksByProject).flat();
 
@@ -37,13 +64,31 @@ export function useTasks(projectId?: string) {
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+
+      if (error) {
+        // Sin conexión — cargar desde caché
+        const cached = await getCachedTasks();
+        if (cached.length > 0) {
+          const filtered = targetId ? cached.filter(t => t.project_id === targetId) : cached;
+          const grouped: Record<string, Task[]> = {};
+          for (const task of filtered) {
+            if (!grouped[task.project_id]) grouped[task.project_id] = [];
+            grouped[task.project_id].push(task);
+          }
+          for (const [pid, tasks] of Object.entries(grouped)) {
+            setTasks(pid, tasks);
+          }
+        }
+        return;
+      }
+
+      const list = (data ?? []) as Task[];
 
       if (targetId) {
-        setTasks(targetId, (data ?? []) as Task[]);
+        setTasks(targetId, list);
       } else {
         const grouped: Record<string, Task[]> = {};
-        for (const task of (data ?? []) as Task[]) {
+        for (const task of list) {
           if (!grouped[task.project_id]) grouped[task.project_id] = [];
           grouped[task.project_id].push(task);
         }
@@ -51,12 +96,67 @@ export function useTasks(projectId?: string) {
           setTasks(pid, tasks);
         }
       }
+
+      // Guardar en caché para uso offline
+      const allTasks = Object.values(tasksByProject).flat();
+      const merged = [...allTasks.filter(t => !list.find(l => l.id === t.id)), ...list];
+      cacheTasks(merged);
+
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al cargar tareas');
     } finally {
       setIsLoading(false);
     }
   }, [user, projectId, setTasks]);
+
+  // Suscripción en tiempo real a la tabla tasks. Si hay projectId, escucha
+  // los cambios de ese proyecto; si no, escucha las tareas asignadas al
+  // usuario actual (igual que el modo de fetchTasks sin proyecto).
+  useEffect(() => {
+    if (!user) return;
+
+    const filter = projectId ? `project_id=eq.${projectId}` : `assigned_to=eq.${user.id}`;
+    const channelName = `tasks:${projectId ?? `mine-${user.id}`}:${instanceIdRef.current}`;
+
+    const upsertAffectedProject = (task: Task) => {
+      // En el modo "todas mis tareas" no hay un projectId fijo — usamos el
+      // de la propia tarea recibida, ya que upsertTask la agrupa por su
+      // project_id internamente.
+      upsertTask(task);
+    };
+
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'tasks', filter },
+        async (payload) => {
+          const full = await fetchFullTask((payload.new as Task).id);
+          if (full) upsertAffectedProject(full);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'tasks', filter },
+        async (payload) => {
+          const full = await fetchFullTask((payload.new as Task).id);
+          if (full) upsertAffectedProject(full);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'tasks', filter },
+        (payload) => {
+          const oldRow = payload.old as Partial<Task>;
+          if (oldRow.id) removeTaskById(oldRow.id);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, projectId, upsertTask, removeTaskById]);
 
   const createTask = async (dto: CreateTaskDTO): Promise<Task> => {
     if (!user) throw new Error('No hay sesión activa');
@@ -114,7 +214,29 @@ export function useTasks(projectId?: string) {
 
   const toggleTaskStatus = async (task: Task): Promise<void> => {
     const newStatus = task.status === 'completed' ? 'pending' : 'completed';
-    await updateTask(task.id, { status: newStatus, completed_at: newStatus === 'completed' ? new Date().toISOString() : undefined });
+    const completedAt = newStatus === 'completed' ? new Date().toISOString() : null;
+
+    // Actualizar el store local inmediatamente (optimistic update)
+    upsertTask({ ...task, status: newStatus as any, completed_at: completedAt });
+
+    // Verificar conexión
+    const netState = await NetInfo.fetch();
+    const online = !!netState.isConnected && !!netState.isInternetReachable;
+
+    if (!online) {
+      // Sin conexión — encolar para sincronizar después
+      await queueToggle({
+        taskId: task.id,
+        projectId: task.project_id,
+        newStatus,
+        completedAt,
+        queuedAt: new Date().toISOString(),
+      });
+      return;
+    }
+
+    // Con conexión — sincronizar directamente
+    await updateTask(task.id, { status: newStatus, completed_at: completedAt ?? undefined });
   };
 
   const deleteTask = async (task: Task): Promise<void> => {

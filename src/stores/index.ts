@@ -59,6 +59,7 @@ interface TaskStore {
   setSelectedTask: (task: Task | null) => void;
   upsertTask: (task: Task) => void;
   removeTask: (projectId: string, taskId: string) => void;
+  removeTaskById: (taskId: string) => void;
   setFilters: (filters: FilterOptions) => void;
   resetFilters: () => void;
 }
@@ -89,6 +90,16 @@ export const useTaskStore = create<TaskStore>((set) => ({
       [projectId]: (state.tasksByProject[projectId] ?? []).filter((t) => t.id !== taskId),
     },
   })),
+  // Elimina una tarea por ID sin necesitar conocer de antemano su project_id
+  // — recorre todos los grupos y la quita de donde aparezca. Útil para
+  // eventos de Realtime DELETE, cuyo payload puede no incluir project_id.
+  removeTaskById: (taskId) => set((state) => {
+    const next: Record<string, Task[]> = {};
+    for (const [pid, list] of Object.entries(state.tasksByProject)) {
+      next[pid] = list.filter((t) => t.id !== taskId);
+    }
+    return { tasksByProject: next };
+  }),
   setFilters: (filters) => set((state) => ({ filters: { ...state.filters, ...filters } })),
   resetFilters: () => set({ filters: { status: 'all', priority: 'all', search: '' } }),
 }));
@@ -96,14 +107,17 @@ export const useTaskStore = create<TaskStore>((set) => ({
 interface UIStore {
   notifications: Notification[];
   unreadCount: number;
+  chatUnreadCount: number;
   setNotifications: (n: Notification[]) => void;
   addNotification: (n: Notification) => void;
   markAllRead: () => void;
+  setChatUnread: (count: number) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
   notifications: [],
   unreadCount: 0,
+  chatUnreadCount: 0,
   setNotifications: (notifications) => set({
     notifications,
     unreadCount: notifications.filter((n) => !n.is_read).length,
@@ -116,4 +130,5 @@ export const useUIStore = create<UIStore>((set) => ({
     notifications: state.notifications.map((n) => ({ ...n, is_read: true })),
     unreadCount: 0,
   })),
+  setChatUnread: (count) => set({ chatUnreadCount: count }),
 }));

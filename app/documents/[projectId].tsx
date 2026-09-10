@@ -1,18 +1,24 @@
 import { useEffect, useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
-  Alert, RefreshControl, Linking,
+  Alert, RefreshControl, Linking, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useDocuments } from '../../src/hooks/useDocuments';
 import { UploadDocumentModal } from '../../src/components/plans/UploadDocumentModal';
-import { Colors, Typography, Spacing, Radius } from '../../src/lib/theme';
+import { ImageViewerModal } from '../../src/components/plans/ImageViewerModal';
+import { Spacing, Radius } from '../../src/lib/theme';
+import { useTheme } from '../../src/lib/ThemeContext';
 import { EmptyState, LoadingOverlay, Avatar } from '../../src/components/ui';
 import { Document } from '../../src/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
+import { useOfflineFiles } from '../../src/hooks/useOfflineFiles';
+import { useUploadQueue } from '../../src/hooks/useUploadQueue';
+import { UploadQueueBanner } from '../../src/components/ui/UploadQueueBanner';
 
 function formatFileSize(bytes?: number | null): string {
   if (!bytes) return '';
@@ -22,21 +28,32 @@ function formatFileSize(bytes?: number | null): string {
 }
 
 function getFileIcon(mimeType?: string | null): { name: keyof typeof Ionicons.glyphMap; color: string } {
-  if (!mimeType) return { name: 'document-outline', color: Colors.textMuted };
-  if (mimeType.startsWith('image/')) return { name: 'image-outline', color: Colors.info };
-  if (mimeType === 'application/pdf') return { name: 'document-text-outline', color: Colors.danger };
-  if (mimeType.includes('word')) return { name: 'document-outline', color: Colors.info };
-  if (mimeType.includes('sheet') || mimeType.includes('excel')) return { name: 'grid-outline', color: Colors.success };
-  return { name: 'document-outline', color: Colors.textMuted };
+  if (!mimeType) return { name: 'document-outline', color: '#6B7280' };
+  if (mimeType.startsWith('image/')) return { name: 'image-outline', color: '#3B82F6' };
+  if (mimeType === 'application/pdf') return { name: 'document-text-outline', color: '#EF4444' };
+  if (mimeType.includes('word')) return { name: 'document-outline', color: '#3B82F6' };
+  if (mimeType.includes('sheet') || mimeType.includes('excel')) return { name: 'grid-outline', color: '#22C55E' };
+  return { name: 'document-outline', color: '#6B7280' };
 }
 
 export default function DocumentsScreen() {
+  const { colors, typography } = useTheme();
+  const { isOnline } = useNetworkStatus();
+  const { downloading, progress, isCached, loadCachedIds, downloadFile, getLocalPath, removeFile } = useOfflineFiles();
   const { projectId, projectName } = useLocalSearchParams<{ projectId: string; projectName: string }>();
   const { documents, isLoading, uploadProgress, fetchDocuments, uploadDocument, deleteDocument } = useDocuments(projectId ?? '');
+  const { queue: uploadQueue, isProcessing, enqueue, retryItem, removeItem } = useUploadQueue(
+    undefined,
+    async (localPath, fileName, mimeType, meta) => {
+      await uploadDocument(localPath, fileName, mimeType, meta.category ?? 'General', meta.description);
+      await fetchDocuments();
+    },
+  );
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [viewerImage, setViewerImage] = useState<{ url: string; name: string } | null>(null);
 
-  useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
+  useEffect(() => { fetchDocuments(); loadCachedIds(); }, [fetchDocuments, loadCachedIds]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -44,10 +61,31 @@ export default function DocumentsScreen() {
     setRefreshing(false);
   };
 
-  const handleOpen = (doc: Document) => {
-    Linking.openURL(doc.file_url).catch(() => {
-      Alert.alert('Error', 'No se pudo abrir el archivo');
-    });
+  const handleOpen = async (doc: Document) => {
+    if (!isOnline) {
+      const localPath = await getLocalPath(doc.id);
+      if (localPath) {
+        const isImage = doc.mime_type?.startsWith('image/');
+        if (isImage) {
+          setViewerImage({ url: localPath, name: doc.file_name });
+        } else {
+          Linking.openURL(`file://${localPath}`).catch(() => {
+            Alert.alert('Error', 'No se pudo abrir el archivo local');
+          });
+        }
+      } else {
+        Alert.alert('Sin conexión', 'Este documento no está disponible offline. Conéctate a internet o descárgalo primero tocando el ícono de nube.');
+      }
+      return;
+    }
+    const isImage = doc.mime_type?.startsWith('image/');
+    if (isImage) {
+      setViewerImage({ url: doc.file_url, name: doc.file_name });
+    } else {
+      Linking.openURL(doc.file_url).catch(() => {
+        Alert.alert('Error', 'No se pudo abrir el archivo');
+      });
+    }
   };
 
   const handleDelete = (doc: Document) => {
@@ -66,20 +104,20 @@ export default function DocumentsScreen() {
   if (isLoading && documents.length === 0) return <LoadingOverlay message="Cargando documentos..." />;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, paddingBottom: Spacing.md }}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={Typography.h3}>Documentos</Text>
-          {projectName && <Text style={[Typography.caption, { color: Colors.textMuted }]}>{projectName}</Text>}
+          <Text style={typography.h3}>Documentos</Text>
+          {projectName && <Text style={[typography.caption, { color: colors.textMuted }]}>{projectName}</Text>}
         </View>
         <TouchableOpacity
           onPress={() => setUploadModalVisible(true)}
-          style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' }}
+          style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Ionicons name="add" size={24} color={Colors.textInverse} />
+          <Ionicons name="add" size={24} color={colors.textInverse} />
         </TouchableOpacity>
       </View>
 
@@ -88,10 +126,20 @@ export default function DocumentsScreen() {
         keyExtractor={(d) => d.id}
         contentContainerStyle={{ padding: Spacing.lg, gap: Spacing.sm, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        ListHeaderComponent={
+          uploadQueue.length > 0 ? (
+            <UploadQueueBanner
+              queue={uploadQueue}
+              isProcessing={isProcessing}
+              onRetry={retryItem}
+              onRemove={removeItem}
+            />
+          ) : null
+        }
         ListEmptyComponent={
           <EmptyState
-            icon={<Ionicons name="folder-open-outline" size={48} color={Colors.textMuted} />}
+            icon={<Ionicons name="folder-open-outline" size={48} color={colors.textMuted} />}
             title="Sin documentos"
             subtitle="Sube contratos, fotos, reportes o cualquier archivo del proyecto"
           />
@@ -102,8 +150,8 @@ export default function DocumentsScreen() {
             <TouchableOpacity
               onPress={() => handleOpen(item)}
               style={{
-                backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.lg,
-                borderWidth: 0.5, borderColor: Colors.border, padding: Spacing.md,
+                backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg,
+                borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md,
                 flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
               }}
             >
@@ -112,35 +160,68 @@ export default function DocumentsScreen() {
               </View>
 
               <View style={{ flex: 1 }}>
-                <Text style={[Typography.body, { fontWeight: '600' }]} numberOfLines={1}>{item.file_name}</Text>
+                <Text style={[typography.body, { fontWeight: '600' }]} numberOfLines={1}>{item.file_name}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: 2, flexWrap: 'wrap' }}>
                   {item.document_type && (
-                    <View style={{ backgroundColor: Colors.primaryMuted, paddingHorizontal: 6, paddingVertical: 1, borderRadius: Radius.full }}>
-                      <Text style={{ fontSize: 10, fontWeight: '600', color: Colors.primary }}>{item.document_type}</Text>
+                    <View style={{ backgroundColor: colors.primaryMuted, paddingHorizontal: 6, paddingVertical: 1, borderRadius: Radius.full }}>
+                      <Text style={{ fontSize: 10, fontWeight: '600', color: colors.primary }}>{item.document_type}</Text>
                     </View>
                   )}
-                  <Text style={[Typography.caption, { color: Colors.textMuted }]}>
+                  <Text style={[typography.caption, { color: colors.textMuted }]}>
                     {formatFileSize(item.file_size)}
                   </Text>
-                  <Text style={[Typography.caption, { color: Colors.textMuted }]}>
+                  <Text style={[typography.caption, { color: colors.textMuted }]}>
                     {format(new Date(item.created_at), 'd MMM yyyy', { locale: es })}
                   </Text>
                 </View>
                 {item.description ? (
-                  <Text style={[Typography.caption, { color: Colors.textMuted, marginTop: 3 }]} numberOfLines={1}>
+                  <Text style={[typography.caption, { color: colors.textMuted, marginTop: 3 }]} numberOfLines={1}>
                     {item.description}
                   </Text>
                 ) : null}
                 {item.uploader && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                    <Avatar name={item.uploader.full_name} size={14} />
-                    <Text style={[Typography.caption, { color: Colors.textMuted }]}>{item.uploader.full_name}</Text>
+                    <Avatar name={item.uploader.full_name} imageUrl={item.uploader.avatar_url} size={14} />
+                    <Text style={[typography.caption, { color: colors.textMuted }]}>{item.uploader.full_name}</Text>
                   </View>
                 )}
               </View>
 
               <TouchableOpacity onPress={() => handleDelete(item)} style={{ padding: Spacing.xs }}>
-                <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+                <Ionicons name="trash-outline" size={16} color={colors.danger} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={async (e) => {
+                  e.stopPropagation?.();
+                  if (!item.file_url) return;
+                  if (isCached(item.id)) {
+                    Alert.alert('Archivo disponible offline', '¿Quieres eliminar la copia local?', [
+                      { text: 'Cancelar', style: 'cancel' },
+                      { text: 'Eliminar', style: 'destructive', onPress: () => removeFile(item.id) },
+                    ]);
+                    return;
+                  }
+                  if (!isOnline) { Alert.alert('Sin conexión', 'Necesitas internet para descargar'); return; }
+                  const result = await downloadFile(item.id, item.file_url, item.file_name, item.mime_type ?? 'application/octet-stream');
+                  if (result) Alert.alert('✅ Descargado', 'El documento ya está disponible sin conexión');
+                  else Alert.alert('Error', 'No se pudo descargar el archivo');
+                }}
+                style={{ padding: Spacing.xs }}
+              >
+                {downloading[item.id] ? (
+                  <View>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    {progress[item.id] > 0 && (
+                      <Text style={{ fontSize: 8, color: colors.primary, textAlign: 'center' }}>{progress[item.id]}%</Text>
+                    )}
+                  </View>
+                ) : (
+                  <Ionicons
+                    name={isCached(item.id) ? 'checkmark-circle' : 'cloud-download-outline'}
+                    size={16}
+                    color={isCached(item.id) ? colors.success : colors.textMuted}
+                  />
+                )}
               </TouchableOpacity>
             </TouchableOpacity>
           );
@@ -150,8 +231,23 @@ export default function DocumentsScreen() {
       <UploadDocumentModal
         visible={uploadModalVisible}
         onClose={() => setUploadModalVisible(false)}
-        onUpload={uploadDocument}
+        onUpload={async (fileUri, fileName, mimeType, category, description) => {
+          if (!isOnline) {
+            await enqueue('document', projectId ?? '', fileUri, fileName, mimeType, { category, description: description ?? '' });
+            setUploadModalVisible(false);
+          } else {
+            await uploadDocument(fileUri, fileName, mimeType, category, description);
+            await fetchDocuments();
+          }
+        }}
         uploadProgress={uploadProgress}
+      />
+
+      <ImageViewerModal
+        visible={!!viewerImage}
+        imageUrl={viewerImage?.url ?? null}
+        fileName={viewerImage?.name}
+        onClose={() => setViewerImage(null)}
       />
     </SafeAreaView>
   );

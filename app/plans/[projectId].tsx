@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
-  Alert, RefreshControl,
+  Alert, RefreshControl, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -9,20 +9,46 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePlans } from '../../src/hooks/usePlans';
 import { PlanViewer } from '../../src/components/plans/PlanViewer';
 import { UploadPlanModal } from '../../src/components/plans/UploadPlanModal';
-import { Colors, Typography, Spacing, Radius } from '../../src/lib/theme';
+import { MapPlanViewer } from '../../src/components/plans/MapPlanViewer';
+import { NewRevisionModal } from '../../src/components/plans/NewRevisionModal';
+import { RevisionHistoryModal } from '../../src/components/plans/RevisionHistoryModal';
+import { PlanCompareModal } from '../../src/components/plans/PlanCompareModal';
+import { Spacing, Radius } from '../../src/lib/theme';
+import { useTheme } from '../../src/lib/ThemeContext';
 import { EmptyState, LoadingOverlay, Badge } from '../../src/components/ui';
 import { Plan } from '../../src/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
+import { useOfflineFiles } from '../../src/hooks/useOfflineFiles';
+import { useUploadQueue } from '../../src/hooks/useUploadQueue';
+import { UploadQueueBanner } from '../../src/components/ui/UploadQueueBanner';
 
 export default function PlansScreen() {
+  const { colors, typography } = useTheme();
+  const { isOnline } = useNetworkStatus();
+  const { downloading, progress, isCached, loadCachedIds, downloadFile, getLocalPath, removeFile } = useOfflineFiles();
+  const { queue: uploadQueue, pendingCount, isProcessing, enqueue, processQueue, retryItem, removeItem } = useUploadQueue(
+    async (localPath, fileName, mimeType, meta) => {
+      await uploadPlan(localPath, fileName, mimeType, meta);
+      await fetchPlans();
+    },
+  );
   const { projectId, projectName } = useLocalSearchParams<{ projectId: string; projectName: string }>();
-  const { plans, isLoading, uploadProgress, fetchPlans, uploadPlan, deletePlan, addAnnotation, deleteAnnotation } = usePlans(projectId ?? '');
+  const { plans, isLoading, uploadProgress, fetchPlans, uploadPlan, deletePlan, addAnnotation, deleteAnnotation, updateScale, uploadRevision, fetchRevisionHistory } = usePlans(projectId ?? '');
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [revisionModalVisible, setRevisionModalVisible] = useState(false);
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [historyModalVisible, setHistoryModalVisible] = useState(false);
+  const [historyTargetPlan, setHistoryTargetPlan] = useState<Plan | null>(null);
+  const [showCompareModal, setShowCompareModal] = useState(false);
+  const [comparePlan, setComparePlan] = useState<Plan | null>(null);
+  const [comparePlanId, setComparePlanId] = useState('');
+  const [comparePlanTitle, setComparePlanTitle] = useState('');
 
-  useEffect(() => { fetchPlans(); }, [fetchPlans]);
+  useEffect(() => { fetchPlans(); loadCachedIds(); }, [fetchPlans, loadCachedIds]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -44,45 +70,68 @@ export default function PlansScreen() {
   };
 
   const statusColor: Record<string, string> = {
-    'Vigente': Colors.success,
-    'Revisión': Colors.warning,
-    'Obsoleto': Colors.danger,
+    'Vigente': colors.success,
+    'Revisión': colors.warning,
+    'Obsoleto': colors.danger,
   };
 
   if (isLoading && plans.length === 0) return <LoadingOverlay message="Cargando planos..." />;
 
-  // Vista de detalle de un plano
   if (selectedPlan) {
     const plan = plans.find((p) => p.id === selectedPlan.id) ?? selectedPlan;
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: Colors.border, backgroundColor: Colors.surface }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.lg, borderBottomWidth: 0.5, borderBottomColor: colors.border, backgroundColor: colors.surface }}>
           <TouchableOpacity onPress={() => setSelectedPlan(null)}>
-            <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={[Typography.h4]} numberOfLines={1}>{plan.title}</Text>
-            <Text style={[Typography.caption, { color: Colors.textMuted }]}>
+            <Text style={[typography.h4]} numberOfLines={1}>{plan.title}</Text>
+            <Text style={[typography.caption, { color: colors.textMuted }]}>
               {plan.code} · {plan.discipline} · {plan.revision}
             </Text>
           </View>
           <Badge
             label={plan.status}
-            color={statusColor[plan.status] ?? Colors.textMuted}
-            bgColor={`${statusColor[plan.status] ?? Colors.textMuted}20`}
+            color={statusColor[plan.status] ?? colors.textMuted}
+            bgColor={`${statusColor[plan.status] ?? colors.textMuted}20`}
           />
+          <TouchableOpacity
+            onPress={() => { setHistoryTargetPlan(plan); setHistoryModalVisible(true); }}
+            style={{ padding: 6 }}
+          >
+            <Ionicons name="time-outline" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => { setComparePlan(plan); setComparePlanId(plan.id); setComparePlanTitle(plan.title); setShowCompareModal(true); }}
+            style={{ padding: 6 }}
+          >
+            <Ionicons name="layers-outline" size={20} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowMapModal(true)}
+            style={{ padding: 6 }}
+          >
+            <Ionicons name="map-outline" size={20} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setRevisionModalVisible(true)}
+            style={{ padding: 6 }}
+          >
+            <Ionicons name="cloud-upload-outline" size={20} color={colors.primary} />
+          </TouchableOpacity>
         </View>
 
         <PlanViewer
           plan={plan}
           onAddAnnotation={(dto) => addAnnotation(dto)}
           onDeleteAnnotation={(id) => deleteAnnotation(id, plan.id)}
+          onUpdateScale={(planId, scale) => updateScale(planId, scale)}
         />
 
-        {/* Leyenda de anotaciones */}
         {(plan.annotations?.length ?? 0) > 0 && (
-          <View style={{ padding: Spacing.md, borderTopWidth: 0.5, borderTopColor: Colors.border, backgroundColor: Colors.surface }}>
-            <Text style={[Typography.caption, { color: Colors.textMuted, marginBottom: 6 }]}>
+          <View style={{ padding: Spacing.md, borderTopWidth: 0.5, borderTopColor: colors.border, backgroundColor: colors.surface }}>
+            <Text style={[typography.caption, { color: colors.textMuted, marginBottom: 6 }]}>
               {plan.annotations?.length} anotación{(plan.annotations?.length ?? 0) !== 1 ? 'es' : ''}
             </Text>
             <View style={{ flexDirection: 'row', gap: Spacing.md }}>
@@ -92,33 +141,68 @@ export default function PlansScreen() {
                 return (
                   <View key={color} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color }} />
-                    <Text style={[Typography.caption, { color: Colors.textMuted }]}>{count}</Text>
+                    <Text style={[typography.caption, { color: colors.textMuted }]}>{count}</Text>
                   </View>
                 );
               })}
             </View>
           </View>
         )}
+
+        <NewRevisionModal
+          visible={revisionModalVisible}
+          onClose={() => setRevisionModalVisible(false)}
+          plan={plan}
+          onUpload={async (fileUri, fileName, mimeType) => {
+            const newPlan = await uploadRevision(plan, fileUri, fileName, mimeType);
+            setSelectedPlan(newPlan);
+          }}
+          uploadProgress={uploadProgress}
+          onOpenMap={() => setShowMapModal(true)}
+        />
+
+        <RevisionHistoryModal
+          visible={historyModalVisible}
+          onClose={() => setHistoryModalVisible(false)}
+          plan={historyTargetPlan}
+          fetchHistory={fetchRevisionHistory}
+          onSelectRevision={(revision) => setSelectedPlan(revision)}
+          projectId={projectId ?? ''}
+        />
+
+        <MapPlanViewer
+          visible={showMapModal}
+          onClose={() => setShowMapModal(false)}
+          projectId={projectId ?? ''}
+          onPlanSaved={() => fetchPlans()}
+        />
+
+        <PlanCompareModal
+          visible={showCompareModal}
+          onClose={() => { setShowCompareModal(false); setComparePlan(null); setComparePlanId(''); setComparePlanTitle(''); }}
+          planId={comparePlanId}
+          planTitle={comparePlanTitle}
+          projectId={projectId ?? ''}
+        />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
-      {/* Header */}
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, paddingBottom: Spacing.md }}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={Typography.h3}>Planos</Text>
-          {projectName && <Text style={[Typography.caption, { color: Colors.textMuted }]}>{projectName}</Text>}
+          <Text style={typography.h3}>Planos</Text>
+          {projectName && <Text style={[typography.caption, { color: colors.textMuted }]}>{projectName}</Text>}
         </View>
         <TouchableOpacity
           onPress={() => setUploadModalVisible(true)}
-          style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' }}
+          style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Ionicons name="add" size={24} color={Colors.textInverse} />
+          <Ionicons name="add" size={24} color={colors.textInverse} />
         </TouchableOpacity>
       </View>
 
@@ -127,41 +211,62 @@ export default function PlansScreen() {
         keyExtractor={(p) => p.id}
         contentContainerStyle={{ padding: Spacing.lg, gap: Spacing.md, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        ListHeaderComponent={
+          uploadQueue.length > 0 ? (
+            <UploadQueueBanner
+              queue={uploadQueue}
+              isProcessing={isProcessing}
+              onRetry={retryItem}
+              onRemove={removeItem}
+            />
+          ) : null
+        }
         ListEmptyComponent={
           <EmptyState
-            icon={<Ionicons name="map-outline" size={48} color={Colors.textMuted} />}
+            icon={<Ionicons name="map-outline" size={48} color={colors.textMuted} />}
             title="Sin planos"
             subtitle="Sube el primer plano tocando el botón +"
           />
         }
         renderItem={({ item }) => (
           <TouchableOpacity
-            onPress={() => setSelectedPlan(item)}
-            style={{ backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: Colors.border, padding: Spacing.md }}
+            onPress={async () => {
+              if (!isOnline) {
+                const localPath = await getLocalPath(item.id);
+                if (localPath) {
+                  setSelectedPlan({ ...item, file_url: localPath });
+                } else {
+                  Alert.alert('Sin conexión', 'Este plano no está disponible offline. Conéctate a internet o descárgalo primero tocando el ícono de nube.');
+                }
+                return;
+              }
+              setSelectedPlan(item);
+            }}
+            style={{ backgroundColor: colors.surfaceSecondary, borderRadius: Radius.lg, borderWidth: 0.5, borderColor: colors.border, padding: Spacing.md }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: Spacing.sm }}>
               <View style={{ flex: 1, marginRight: Spacing.sm }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: 3 }}>
                   <Ionicons
                     name={item.file_type === 'pdf' ? 'document-outline' : 'image-outline'}
-                    size={16} color={Colors.primary}
+                    size={16} color={colors.primary}
                   />
-                  <Text style={[Typography.caption, { color: Colors.primary, fontWeight: '600' }]}>{item.code}</Text>
+                  <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>{item.code}</Text>
                 </View>
-                <Text style={[Typography.body, { fontWeight: '600' }]} numberOfLines={1}>{item.title}</Text>
-                <Text style={[Typography.caption, { color: Colors.textMuted, marginTop: 2 }]}>
+                <Text style={[typography.body, { fontWeight: '600' }]} numberOfLines={1}>{item.title}</Text>
+                <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
                   {item.discipline} · {item.level} · {item.revision}
                 </Text>
               </View>
               <View style={{ gap: Spacing.sm, alignItems: 'flex-end' }}>
                 <Badge
                   label={item.status}
-                  color={statusColor[item.status] ?? Colors.textMuted}
-                  bgColor={`${statusColor[item.status] ?? Colors.textMuted}20`}
+                  color={statusColor[item.status] ?? colors.textMuted}
+                  bgColor={`${statusColor[item.status] ?? colors.textMuted}20`}
                 />
                 {item.scale && (
-                  <Text style={[Typography.caption, { color: Colors.textMuted }]}>Esc. {item.scale}</Text>
+                  <Text style={[typography.caption, { color: colors.textMuted }]}>Esc. {item.scale}</Text>
                 )}
               </View>
             </View>
@@ -170,19 +275,65 @@ export default function PlansScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.lg }}>
                 {(item.annotations?.length ?? 0) > 0 && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Ionicons name="pin-outline" size={13} color={Colors.textMuted} />
-                    <Text style={[Typography.caption, { color: Colors.textMuted }]}>
+                    <Ionicons name="pin-outline" size={13} color={colors.textMuted} />
+                    <Text style={[typography.caption, { color: colors.textMuted }]}>
                       {item.annotations?.length} anotaciones
                     </Text>
                   </View>
                 )}
-                <Text style={[Typography.caption, { color: Colors.textMuted }]}>
+                <Text style={[typography.caption, { color: colors.textMuted }]}>
                   {format(new Date(item.created_at), 'd MMM yyyy', { locale: es })}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => handleDelete(item)} style={{ padding: Spacing.xs }}>
-                <Ionicons name="trash-outline" size={16} color={Colors.danger} />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                <TouchableOpacity
+                  onPress={(e) => { e.stopPropagation?.(); setHistoryTargetPlan(item); setHistoryModalVisible(true); }}
+                  style={{ padding: Spacing.xs }}
+                >
+                  <Ionicons name="time-outline" size={16} color={colors.textMuted} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDelete(item)} style={{ padding: Spacing.xs }}>
+                  <Ionicons name="trash-outline" size={16} color={colors.danger} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={async (e) => {
+                    e.stopPropagation?.();
+                    if (!item.file_url) return;
+                    if (isCached(item.id)) {
+                      Alert.alert(
+                        'Archivo disponible offline',
+                        '¿Quieres eliminar la copia local?',
+                        [
+                          { text: 'Cancelar', style: 'cancel' },
+                          { text: 'Eliminar', style: 'destructive', onPress: () => removeFile(item.id) },
+                        ]
+                      );
+                      return;
+                    }
+                    if (!isOnline) { Alert.alert('Sin conexión', 'Necesitas internet para descargar'); return; }
+                    const ext = item.file_type === 'pdf' ? 'pdf' : 'jpg';
+                    const result = await downloadFile(item.id, item.file_url, `${item.code}.${ext}`, item.file_type ?? 'image/jpeg');
+                    if (result) Alert.alert('✅ Descargado', 'El plano ya está disponible sin conexión');
+                    else Alert.alert('Error', 'No se pudo descargar el archivo');
+                  }}
+                  style={{ padding: Spacing.xs }}
+                >
+                  {downloading[item.id] ? (
+                    <View style={{ position: 'relative' }}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                      {progress[item.id] > 0 && (
+                        <Text style={{ fontSize: 8, color: colors.primary, textAlign: 'center' }}>{progress[item.id]}%</Text>
+                      )}
+                    </View>
+                  ) : (
+                    <Ionicons
+                      name={isCached(item.id) ? 'checkmark-circle' : 'cloud-download-outline'}
+                      size={16}
+                      color={isCached(item.id) ? colors.success : colors.textMuted}
+                    />
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           </TouchableOpacity>
         )}
@@ -191,8 +342,33 @@ export default function PlansScreen() {
       <UploadPlanModal
         visible={uploadModalVisible}
         onClose={() => setUploadModalVisible(false)}
-        onUpload={uploadPlan}
+        onUpload={async (fileUri, fileName, mimeType, meta) => {
+          if (!isOnline) {
+            await enqueue('plan', projectId ?? '', fileUri, fileName, mimeType, meta);
+            setUploadModalVisible(false);
+          } else {
+            const newPlan = await uploadPlan(fileUri, fileName, mimeType, meta);
+            await fetchPlans();
+          }
+        }}
         uploadProgress={uploadProgress}
+        onOpenMap={() => setShowMapModal(true)}
+      />
+
+      <RevisionHistoryModal
+        visible={historyModalVisible}
+        onClose={() => setHistoryModalVisible(false)}
+        plan={historyTargetPlan}
+        fetchHistory={fetchRevisionHistory}
+        onSelectRevision={(revision) => setSelectedPlan(revision)}
+        projectId={projectId ?? ''}
+      />
+
+      <MapPlanViewer
+        visible={showMapModal}
+        onClose={() => setShowMapModal(false)}
+        projectId={projectId ?? ''}
+        onPlanSaved={() => fetchPlans()}
       />
     </SafeAreaView>
   );

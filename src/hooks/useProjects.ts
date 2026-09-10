@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Project, CreateProjectDTO, UpdateProjectDTO } from '../types';
 import { useProjectStore } from '../stores';
 import { useAuth } from '../lib/AuthContext';
+import { cacheProjects, getCachedProjects } from './useOfflineCache';
 
 export function useProjects() {
   const { user } = useAuth();
@@ -25,8 +26,16 @@ export function useProjects() {
         .select('*')
         .order('updated_at', { ascending: false });
 
-      if (error) throw error;
-      setProjects((data ?? []) as Project[]);
+      if (error) {
+        // Sin conexión — cargar desde caché
+        const cached = await getCachedProjects();
+        if (cached.length > 0) setProjects(cached);
+        else throw error;
+      } else {
+        const list = (data ?? []) as Project[];
+        setProjects(list);
+        cacheProjects(list); // guardar para uso offline
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al cargar proyectos');
     } finally {
@@ -66,6 +75,38 @@ export function useProjects() {
   };
 
   const deleteProject = async (id: string): Promise<void> => {
+    // 1. Obtener todas las rutas de archivos antes de borrar
+    const [plansData, docsData, tasksData] = await Promise.all([
+      supabase.from('plans').select('file_url').eq('project_id', id),
+      supabase.from('documents').select('file_url').eq('project_id', id),
+      supabase.from('tasks').select('evidence_photo_url').eq('project_id', id),
+    ]);
+
+    // 2. Extraer paths de Storage y eliminar archivos
+    const extractPath = (url: string | null, prefix: string): string | null => {
+      if (!url) return null;
+      try {
+        const u = new URL(url);
+        const parts = u.pathname.split(`/${prefix}/`);
+        return parts.length > 1 ? parts[1] : null;
+      } catch { return null; }
+    };
+
+    const planPaths = (plansData.data ?? [])
+      .map(p => extractPath(p.file_url, 'plans')).filter(Boolean) as string[];
+    const docPaths = (docsData.data ?? [])
+      .map(d => extractPath(d.file_url, 'documents')).filter(Boolean) as string[];
+    const photoPaths = (tasksData.data ?? [])
+      .map(t => extractPath(t.evidence_photo_url, 'photos')).filter(Boolean) as string[];
+
+    // Borrar archivos en Storage en paralelo
+    await Promise.allSettled([
+      planPaths.length > 0 && supabase.storage.from('plans').remove(planPaths),
+      docPaths.length > 0 && supabase.storage.from('documents').remove(docPaths),
+      photoPaths.length > 0 && supabase.storage.from('photos').remove(photoPaths),
+    ]);
+
+    // 3. Borrar el proyecto (CASCADE borra el resto en BD)
     const { error } = await supabase.from('projects').delete().eq('id', id);
     if (error) throw error;
     removeProject(id);

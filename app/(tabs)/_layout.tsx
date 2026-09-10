@@ -1,11 +1,12 @@
 import { ComponentProps } from 'react';
 import { Redirect, Tabs } from 'expo-router';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/lib/AuthContext';
 import { useUIStore } from '../../src/stores';
 import { Colors, Radius, Spacing, Typography } from '../../src/lib/theme';
-import { LoadingOverlay } from '../../src/components/ui';
+import { LoadingOverlay, OfflineBanner } from '../../src/components/ui';
+import { useOfflineSync } from '../../src/hooks/useOfflineSync';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -41,7 +42,12 @@ function WarmUpBanner() {
 
 export default function TabsLayout() {
   const { isAuthenticated, isLoading, isWarmingUp } = useAuth();
-  const unreadCount = useUIStore((s) => s.unreadCount);
+  const unreadChatCount = useUIStore((s) => s.chatUnreadCount);
+  const { isOnline, pendingCount } = useOfflineSync({
+    onSyncComplete: (synced) => {
+      Alert.alert('Sincronizado', `${synced} cambio${synced !== 1 ? 's' : ''} sincronizado${synced !== 1 ? 's' : ''} correctamente.`);
+    },
+  });
 
   if (isLoading) return <LoadingOverlay message="Cargando..." />;
   if (!isAuthenticated) return <Redirect href="/(auth)/login" />;
@@ -49,6 +55,7 @@ export default function TabsLayout() {
   return (
     <View style={{ flex: 1 }}>
       {isWarmingUp && <WarmUpBanner />}
+      <OfflineBanner isOnline={isOnline} pendingCount={pendingCount} />
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -59,13 +66,14 @@ export default function TabsLayout() {
           },
           tabBarActiveTintColor: Colors.primary,
           tabBarInactiveTintColor: Colors.textMuted,
-          tabBarLabelStyle: { fontSize: 10, fontWeight: '500' },
+          tabBarLabelStyle: { fontSize: 9, fontWeight: '500' },
         }}
       >
         <Tabs.Screen name="index" options={{ title: 'Inicio', tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'home' : 'home-outline'} focused={focused} /> }} />
         <Tabs.Screen name="projects" options={{ title: 'Proyectos', tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'briefcase' : 'briefcase-outline'} focused={focused} /> }} />
         <Tabs.Screen name="tasks" options={{ title: 'Tareas', tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'checkbox' : 'checkbox-outline'} focused={focused} /> }} />
-        <Tabs.Screen name="chat" options={{ title: 'Chat', tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'chatbubbles' : 'chatbubbles-outline'} focused={focused} badge={unreadCount} /> }} />
+        <Tabs.Screen name="chat" options={{ title: 'Chat', tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'chatbubbles' : 'chatbubbles-outline'} focused={focused} badge={unreadChatCount} /> }} />
+        <Tabs.Screen name="notifications" options={{ href: null }} />
         <Tabs.Screen name="profile" options={{ title: 'Perfil', tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'person' : 'person-outline'} focused={focused} /> }} />
       </Tabs>
     </View>
