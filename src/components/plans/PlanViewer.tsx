@@ -26,6 +26,11 @@ import { ImageViewerModal } from './ImageViewerModal';
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const VIEWER_H = SCREEN_H * 0.65;
 
+const MAX_SCALE = 5;
+// Cuánto se levanta la mira respecto al dedo. 48 es suficiente para que el
+// punto quede visible arriba de la yema sin salirse de la zona cómoda.
+const CROSSHAIR_OFFSET = 48;
+
 interface Point { x: number; y: number; }
 
 interface PlanViewerProps {
@@ -62,6 +67,16 @@ function denormalize(pt: Point, w: number, h: number): Point {
 }
 function dist(a: Point, b: Point): number {
   return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2);
+}
+
+/** Distancia de un punto al segmento a-b (no a la recta infinita). */
+function distToSegment(p: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return dist(p, a);
+  let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return dist(p, { x: a.x + t * dx, y: a.y + t * dy });
 }
 
 // Convierte una distancia en píxeles de pantalla a una distancia real,
@@ -142,6 +157,13 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
   const [selectedColor, setSelectedColor] = useState(PIN_COLORS[0].color);
   const [labelModalVisible, setLabelModalVisible] = useState(false);
   const [pendingPoint, setPendingPoint] = useState<Point | null>(null);
+
+  // Posición de la mira en coordenadas locales del contenedor (no del plano),
+  // para dibujarla fuera del Animated.View y que no se deforme con el zoom.
+  const [crosshair, setCrosshair] = useState<Point | null>(null);
+  const crosshairRef = useRef<Point | null>(null);
+  const setCross = (p: Point | null) => { crosshairRef.current = p; setCrosshair(p); };
+
   const [pendingReferencePoint, setPendingReferencePoint] = useState<Point | null>(null);
   // Al abrir un archivo externo (Linking.openURL), Android a veces dispara un
   // toque "fantasma" al regresar a la app, que reactiva la herramienta activa
@@ -198,8 +220,11 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
 
   // Zoom/pan manual con PanResponder — ScrollView.maximumZoomScale no funciona
   // en Android (solo iOS lo soporta nativamente), así que controlamos el pinch
-  // y arrastre nosotros mismos con Animated.Value, aplicando el mismo transform
-  // a la imagen y a las anotaciones para que se muevan siempre sincronizadas.
+  // y arrastre nosotros mismos con Animated.Value.
+  //
+  // El transform vive ahora en UN SOLO contenedor, se use o no una herramienta.
+  // Antes había ramas de render distintas por herramienta y solo la de "Mover"
+  // tenía transform, por eso había que resetear el zoom al cambiar de modo.
   const scale = useRef(new Animated.Value(1)).current;
   const translateX = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
@@ -208,6 +233,29 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
   const initialPinchDistance = useRef<number | null>(null);
   const initialScaleOnPinch = useRef(1);
   const lastTap = useRef(0);
+  // Marca cuándo terminó un gesto de zoom/pan, para no confundir el dedo que
+  // se levanta al final de un pellizco con un toque que coloca una anotación.
+  const gestureEndedAt = useRef(0);
+
+  // Distingue un arrastre de medición de un toque suelto. Sin esto, soltar
+  // el dedo tras arrastrar guardaría solo el punto inicial.
+  const dragStartLocal = useRef<Point | null>(null);
+  const isDragMeasuring = useRef(false);
+
+  const containerRef = useRef<View | null>(null);
+  const containerOrigin = useRef({ x: 0, y: 0 });
+
+  const measureContainer = useCallback(() => {
+    containerRef.current?.measureInWindow((x, y) => {
+      containerOrigin.current = { x, y };
+    });
+  }, []);
+
+  const handleLayout = useCallback((e: any) => {
+    const { width, height } = e.nativeEvent.layout;
+    setImageSize({ width, height });
+    requestAnimationFrame(measureContainer);
+  }, [measureContainer]);
 
   const resetZoom = () => {
     currentScale.current = 1;
@@ -218,6 +266,33 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
       Animated.timing(translateY, { toValue: 0, duration: 200, useNativeDriver: false }),
     ]).start();
   };
+
+  /**
+   * Invierte el transform para saber sobre qué punto del PLANO cayó un toque.
+   *
+   * El transform escala y desplaza desde el centro, o sea
+   *   pantalla = centro + desplazamiento + escala * (plano - centro)
+   * Despejando queda la fórmula de abajo. Sin esta conversión, una anotación
+   * colocada con zoom se guardaría en coordenadas de pantalla y aparecería
+   * desplazada al volver a 1x.
+   */
+  const toContentLocal = (lx: number, ly: number): Point => {
+    const size = imageSizeRef.current;
+    const cx = size.width / 2;
+    const cy = size.height / 2;
+    const s = currentScale.current;
+    const t = currentTranslate.current;
+    return {
+      x: cx + (lx - cx - t.x) / s,
+      y: cy + (ly - cy - t.y) / s,
+    };
+  };
+
+  const toLocal = (pageX: number, pageY: number): Point => ({
+    x: pageX - containerOrigin.current.x,
+    y: pageY - containerOrigin.current.y,
+  });
+
 
   const getTouchDistance = (touches: any[]) => {
     const [a, b] = touches;
@@ -232,9 +307,13 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
       // (pines, anotaciones), que de otro modo quedarían bloqueados.
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (evt, gestureState) => {
-        if (activeToolRef.current !== 'none') return false;
         const touches = evt.nativeEvent.touches;
+        // El pellizco a dos dedos SIEMPRE hace zoom, haya o no herramienta activa.
         if (touches.length === 2) return true;
+        // El arrastre a un dedo solo mueve el plano en modo "Mover": con una
+        // herramienta activa, un dedo sirve para colocar o para la línea en
+        // vivo de la medición.
+        if (activeToolRef.current !== 'none') return false;
         if (currentScale.current > 1 && (Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5)) return true;
         return false;
       },
@@ -256,10 +335,10 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
           }
           const newDistance = getTouchDistance(touches);
           const ratio = newDistance / initialPinchDistance.current;
-          const newScale = Math.max(1, Math.min(initialScaleOnPinch.current * ratio, 5));
+          const newScale = Math.max(1, Math.min(initialScaleOnPinch.current * ratio, MAX_SCALE));
           currentScale.current = newScale;
           scale.setValue(newScale);
-        } else if (touches.length === 1 && currentScale.current > 1) {
+        } else if (touches.length === 1 && currentScale.current > 1 && activeToolRef.current === 'none') {
           translateX.setValue(currentTranslate.current.x + gestureState.dx);
           translateY.setValue(currentTranslate.current.y + gestureState.dy);
         }
@@ -267,14 +346,23 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
 
       onPanResponderRelease: (evt, gestureState) => {
         initialPinchDistance.current = null;
+        gestureEndedAt.current = Date.now();
+
         if (currentScale.current > 1) {
-          currentTranslate.current = {
-            x: currentTranslate.current.x + gestureState.dx,
-            y: currentTranslate.current.y + gestureState.dy,
-          };
+          if (activeToolRef.current === 'none') {
+            currentTranslate.current = {
+              x: currentTranslate.current.x + gestureState.dx,
+              y: currentTranslate.current.y + gestureState.dy,
+            };
+          }
         } else {
           resetZoom();
         }
+
+        // El doble toque para acercar o ajustar solo aplica en modo "Mover":
+        // con una herramienta activa, dos toques seguidos son dos anotaciones
+        // o los dos extremos de una medición.
+        if (activeToolRef.current !== 'none') return;
 
         const isTap = Math.abs(gestureState.dx) < 5 && Math.abs(gestureState.dy) < 5;
         if (isTap) {
@@ -314,6 +402,15 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
     return () => { cancelled = true; };
   }, [isPdf, isExpoGo, plan.file_url, plan.id]);
 
+  // La barra de Medir aparece y desaparece arriba del visor, lo que desplaza
+  // el contenedor sin cambiar su layout relativo, así que onLayout no se
+  // dispara y la posición absoluta guardada se queda vieja.
+  useEffect(() => {
+    const t = setTimeout(measureContainer, 50);
+    return () => clearTimeout(t);
+  }, [activeTool, measureContainer]);
+
+
   const handleSaveScale = async (newScale: string) => {
     setPlanScale(newScale);
     try {
@@ -323,28 +420,94 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
     }
   };
 
-  const handleTouch = useCallback((evt: any) => {
-    if (suppressNextTouch.current) {
-      suppressNextTouch.current = false;
+  const handleTouchStart = useCallback((evt: any) => {
+    measureContainer();
+    if (activeToolRef.current === 'none') return;
+    if ((evt.nativeEvent.touches?.length ?? 0) > 1) { setCross(null); return; }
+    const { pageX, pageY } = evt.nativeEvent;
+    const l = toLocal(pageX, pageY);
+    setCross({ x: l.x, y: l.y - CROSSHAIR_OFFSET });
+
+    if (activeToolRef.current === 'measure' && !drawingRef.current) {
+      dragStartLocal.current = { x: l.x, y: l.y - CROSSHAIR_OFFSET };
+      isDragMeasuring.current = false;
+    }
+
+  }, [measureContainer]);
+
+  const handleTouchMove = useCallback((evt: any) => {
+    if (activeToolRef.current === 'none') return;
+    const touches = evt.nativeEvent.touches;
+    // Si entró un segundo dedo es un pellizco, no una colocación.
+    if (touches.length > 1) { setCross(null); return; }
+
+    const { pageX, pageY } = evt.nativeEvent;
+    const l = toLocal(pageX, pageY);
+    const cross = { x: l.x, y: l.y - CROSSHAIR_OFFSET };
+    setCross(cross);
+
+    if (activeToolRef.current !== 'measure') return;
+    const size = imageSizeRef.current;
+
+    // Si el dedo se alejó lo suficiente del punto donde empezó, es un
+    // arrastre: se fija el inicio y la línea empieza a seguir la mira.
+    if (!drawingRef.current && dragStartLocal.current) {
+      if (dist(cross, dragStartLocal.current) > 12) {
+        isDragMeasuring.current = true;
+        drawingRef.current = true;
+        const start = toContentLocal(dragStartLocal.current.x, dragStartLocal.current.y);
+        setDrawStart(normalize(start, size.width, size.height));
+        setDrawing(true);
+      }
+    }
+
+    if (drawingRef.current) {
+      setDrawEnd(normalize(toContentLocal(cross.x, cross.y), size.width, size.height));
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    const cross = crosshairRef.current;
+    setCross(null);
+
+    const wasDragging = isDragMeasuring.current;
+    isDragMeasuring.current = false;
+    dragStartLocal.current = null;
+
+    if (suppressNextTouch.current) { suppressNextTouch.current = false; return; }
+    const tool = activeToolRef.current;
+    if (tool === 'none' || !cross) return;
+    if (Date.now() - gestureEndedAt.current < 300) return;
+
+    const size = imageSizeRef.current;
+    const pt = toContentLocal(cross.x, cross.y);
+    if (pt.x < 0 || pt.y < 0 || pt.x > size.width || pt.y > size.height) return;
+
+    const tolerance = 18 / currentScale.current;
+    const hitMeasure = (plan.annotations ?? [])
+      .filter((a) => a.type === 'measure' && a.start_x != null && a.end_x != null)
+      .filter((a) => (isPdf ? (a.page_number ?? 1) === currentPageRef.current : true))
+      .find((a) => {
+        const s = denormalize({ x: a.start_x!, y: a.start_y! }, size.width, size.height);
+        const e = denormalize({ x: a.end_x!, y: a.end_y! }, size.width, size.height);
+        return distToSegment(pt, s, e) <= tolerance;
+      });
+
+    if (hitMeasure) {
+      setSelectedAnnotation(hitMeasure);
+      if (!drawingRef.current && !wasDragging) cancelMeasuring();
       return;
     }
-    const tool = activeToolRef.current;
-    if (tool === 'none') return;
-    const { locationX, locationY } = evt.nativeEvent;
-    const size = imageSizeRef.current;
-    const pt: Point = { x: locationX, y: locationY };
 
     if (tool === 'pin' || tool === 'text') {
-      const normPt = normalize(pt, size.width, size.height);
-      setPendingPoint(normPt);
+      setPendingPoint(normalize(pt, size.width, size.height));
       setLabelText('');
       setLabelModalVisible(true);
       return;
     }
 
     if (tool === 'reference') {
-      const normPt = normalize(pt, size.width, size.height);
-      setPendingReferencePoint(normPt);
+      setPendingReferencePoint(normalize(pt, size.width, size.height));
       setReferenceModalVisible(true);
       return;
     }
@@ -357,7 +520,6 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
       } else if (drawStartRef.current) {
         const startPx = denormalize(drawStartRef.current, size.width, size.height);
         const pixelDist = dist(startPx, pt);
-        const normEnd = normalize(pt, size.width, size.height);
         const realDist = calcRealDist(pixelDist, planScaleRef.current);
 
         onAddAnnotation({
@@ -367,8 +529,8 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
           color: '#EF4444',
           start_x: drawStartRef.current.x,
           start_y: drawStartRef.current.y,
-          end_x: normEnd.x,
-          end_y: normEnd.y,
+          end_x: normalize(pt, size.width, size.height).x,
+          end_y: normalize(pt, size.width, size.height).y,
           pixel_dist: pixelDist,
           real_dist: realDist,
           plan_scale: planScaleRef.current,
@@ -382,14 +544,7 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
         setDrawEnd(null);
       }
     }
-  }, [onAddAnnotation, plan.id, plan.project_id]);
-
-  const handleTouchMove = useCallback((evt: any) => {
-    if (activeToolRef.current !== 'measure' || !drawingRef.current) return;
-    const { locationX, locationY } = evt.nativeEvent;
-    const size = imageSizeRef.current;
-    setDrawEnd(normalize({ x: locationX, y: locationY }, size.width, size.height));
-  }, []);
+  }, [onAddAnnotation, plan.id, plan.project_id, plan.annotations, isPdf]);
 
   const confirmAnnotation = async () => {
     if (!pendingPoint || !user) return;
@@ -525,7 +680,6 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
           .map((a) => {
             const s = dn({ x: a.start_x!, y: a.start_y! });
             const e = dn({ x: a.end_x!, y: a.end_y! });
-            const mx = (s.x + e.x) / 2, my = (s.y + e.y) / 2 - 10;
             return (
               <Line key={`${a.id}-line`} x1={s.x} y1={s.y} x2={e.x} y2={e.y} stroke={a.color} strokeWidth={2} strokeDasharray="6,3" />
             );
@@ -551,23 +705,174 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
   };
 
   // Capa táctil para tocar/eliminar mediciones guardadas (el SVG no recibe touches)
+  // Banda invisible a lo largo de toda la línea, no solo en el punto medio.
+  // Se rota para seguir la dirección de la medición.
   const renderMeasureHitboxes = () => (
     <>
       {annotations
         .filter((a) => a.type === 'measure' && a.start_x != null && a.end_x != null)
         .map((a) => {
-          const mx = ((a.start_x! + a.end_x!) / 2) * imageSize.width;
-          const my = ((a.start_y! + a.end_y!) / 2) * imageSize.height - 10;
+          const s = denormalize({ x: a.start_x!, y: a.start_y! }, imageSize.width, imageSize.height);
+          const e = denormalize({ x: a.end_x!, y: a.end_y! }, imageSize.width, imageSize.height);
+          const len = Math.max(dist(s, e), 44);
+          const angle = Math.atan2(e.y - s.y, e.x - s.x);
           return (
             <TouchableOpacity
               key={a.id}
               onPress={() => handleAnnotationPress(a)}
-              style={{ position: 'absolute', left: mx - 24, top: my - 14, width: 48, height: 28 }}
+              style={{
+                position: 'absolute',
+                left: (s.x + e.x) / 2 - len / 2,
+                top: (s.y + e.y) / 2 - 18,
+                width: len,
+                height: 36,
+                transform: [{ rotate: `${angle}rad` }],
+              }}
             />
           );
         })}
     </>
   );
+
+  // Pines, referencias y notas. Viven dentro del Animated.View, así que se
+  // mueven y escalan junto con el plano sin cálculos adicionales.
+  const renderAnnotationMarkers = () => (
+    <>
+      {annotations.map((ann) => {
+        if (ann.type === 'pin' && ann.point_x != null && ann.point_y != null) {
+          return (
+            <TouchableOpacity
+              key={ann.id}
+              onPress={() => handleAnnotationPress(ann)}
+              style={{
+                position: 'absolute',
+                left: ann.point_x * imageSize.width - 14,
+                top: ann.point_y * imageSize.height - 14,
+                width: 28, height: 28, borderRadius: 14,
+                backgroundColor: ann.color,
+                alignItems: 'center', justifyContent: 'center',
+                borderWidth: 2, borderColor: '#fff',
+                shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
+              }}
+            >
+              <Ionicons name="pin" size={14} color="#fff" />
+            </TouchableOpacity>
+          );
+        }
+        if (ann.type === 'reference' && ann.point_x != null && ann.point_y != null) {
+          const hasThumbnail = !!ann.attachment_thumbnail;
+          return (
+            <TouchableOpacity
+              key={ann.id}
+              onPress={() => handleAnnotationPress(ann)}
+              style={{
+                position: 'absolute',
+                left: ann.point_x * imageSize.width - 16,
+                top: ann.point_y * imageSize.height - 16,
+                width: 32, height: 32, borderRadius: 16,
+                backgroundColor: hasThumbnail ? undefined : ann.color,
+                alignItems: 'center', justifyContent: 'center',
+                borderWidth: 2, borderColor: '#fff',
+                overflow: 'hidden',
+                shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
+              }}
+            >
+              {hasThumbnail ? (
+                <Image source={{ uri: ann.attachment_thumbnail! }} style={{ width: 32, height: 32 }} />
+              ) : (
+                <Ionicons name="document-attach" size={14} color="#fff" />
+              )}
+            </TouchableOpacity>
+          );
+        }
+        if (ann.type === 'text' && ann.position_x != null && ann.position_y != null) {
+          return (
+            <TouchableOpacity
+              key={ann.id}
+              onPress={() => handleAnnotationPress(ann)}
+              style={{
+                position: 'absolute',
+                left: ann.position_x * imageSize.width,
+                top: ann.position_y * imageSize.height,
+                backgroundColor: `${ann.color}CC`,
+                borderRadius: Radius.sm,
+                paddingHorizontal: 8, paddingVertical: 3,
+                maxWidth: 140,
+              }}
+            >
+              <Text style={{ fontSize: 11, color: '#fff', fontWeight: '600' }}>
+                {ann.text}
+              </Text>
+            </TouchableOpacity>
+          );
+        }
+        return null;
+      })}
+    </>
+  );
+
+  // El plano en sí: PDF o imagen. Una sola definición, porque ya no hay ramas
+  // de render distintas según la herramienta activa.
+  const renderMedia = () => {
+    if (!isPdf) {
+      return (
+        <Image
+          source={{ uri: plan.file_url }}
+          style={{ width: SCREEN_W, height: VIEWER_H, resizeMode: 'contain' }}
+          onLoad={() => setImgLoaded(true)}
+        />
+      );
+    }
+
+    if (pdfDownloadError) {
+      return (
+        <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a', gap: Spacing.md }}>
+          <Ionicons name="alert-circle-outline" size={32} color={Colors.danger} />
+          <Text style={[Typography.bodySmall, { color: Colors.textMuted }]}>No se pudo descargar el PDF</Text>
+        </View>
+      );
+    }
+
+    if (!localPdfPath) {
+      return (
+        <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a' }}>
+          <ActivityIndicator color={Colors.primary} />
+        </View>
+      );
+    }
+
+    if (!Pdf) {
+      return (
+        <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a', gap: 12 }}>
+          <Ionicons name="document-outline" size={48} color={Colors.textMuted} />
+          <Text style={[Typography.bodySmall, { color: Colors.textMuted, textAlign: 'center', paddingHorizontal: 32 }]}>
+            El visor de PDF no está disponible en Expo Go.{' '}Usa el build de producción para ver planos PDF.
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <Pdf
+        source={{ uri: localPdfPath, cache: false }}
+        style={{ width: SCREEN_W, height: VIEWER_H, backgroundColor: '#1a1a1a' }}
+        onLoadComplete={() => setImgLoaded(true)}
+        onPageChanged={(page: number) => setCurrentPage(page)}
+        onError={(error: unknown) => {
+          console.warn('[PlanViewer] Error renderizando PDF:', error);
+          Alert.alert('Error', 'No se pudo mostrar el PDF descargado.');
+        }}
+        enablePaging={false}
+        horizontal={false}
+        fitPolicy={0}
+        minScale={1}
+        maxScale={1}
+        scale={1}
+      />
+    );
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -612,9 +917,10 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
           <TouchableOpacity
             key={tool.type}
             onPress={() => {
+              // Ya NO se llama resetZoom() aquí: cambiar de herramienta conserva
+              // el zoom, que era justo lo que estorbaba para medir un detalle.
               setActiveTool(tool.type);
               cancelMeasuring();
-              resetZoom();
             }}
             style={{
               flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0,
@@ -630,6 +936,18 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
             </Text>
           </TouchableOpacity>
         ))}
+
+        <TouchableOpacity
+          onPress={resetZoom}
+          style={{
+            flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0,
+            paddingHorizontal: 12, paddingVertical: 7, borderRadius: Radius.md,
+            borderWidth: 1, borderColor: Colors.border,
+          }}
+        >
+          <Ionicons name="contract-outline" size={15} color={Colors.textMuted} />
+          <Text style={{ fontSize: 12, fontWeight: '500', color: Colors.textMuted }}>Ajustar</Text>
+        </TouchableOpacity>
 
         {activeTool !== 'none' && activeTool !== 'measure' && PIN_COLORS.map((c) => (
           <TouchableOpacity
@@ -672,470 +990,62 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
                 Anotaciones no disponibles en Expo Go
               </Text>
             </TouchableOpacity>
-          ) : isPdf && activeTool === 'none' ? (
-            <View
-              style={{ width: SCREEN_W, height: VIEWER_H, overflow: 'hidden' }}
-              {...zoomPanResponder.panHandlers}
-              onLayout={(e) => {
-                setImageSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height });
-              }}
-            >
-              <Animated.View
-                style={{
-                  width: SCREEN_W, height: VIEWER_H,
-                  transform: [
-                    { translateX },
-                    { translateY },
-                    { scale },
-                  ],
-                }}
-              >
-              {pdfDownloadError ? (
-                <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a', gap: Spacing.md }}>
-                  <Ionicons name="alert-circle-outline" size={32} color={Colors.danger} />
-                  <Text style={[Typography.bodySmall, { color: Colors.textMuted }]}>No se pudo descargar el PDF</Text>
-                </View>
-              ) : localPdfPath ? (
-                Pdf ? (
-                Pdf ? (
-                <Pdf
-                  source={{ uri: localPdfPath, cache: false }}
-                  style={{ width: SCREEN_W, height: VIEWER_H, backgroundColor: '#1a1a1a' }}
-                  onLoadComplete={() => setImgLoaded(true)}
-                  onPageChanged={(page) => setCurrentPage(page)}
-                  onError={(error) => {
-                    console.warn('[PlanViewer] Error renderizando PDF:', error);
-                    Alert.alert('Error', 'No se pudo mostrar el PDF descargado.');
-                  }}
-                  enablePaging={false}
-                  horizontal={false}
-                  fitPolicy={0}
-                  minScale={1}
-                  maxScale={1}
-                  scale={1}
-                  enableDoubleTapZoom
-                />
-              ) : (
-                <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a', gap: 12 }}>
-                  <Ionicons name="document-outline" size={48} color={Colors.textMuted} />
-                  <Text style={[Typography.bodySmall, { color: Colors.textMuted, textAlign: 'center', paddingHorizontal: 32 }]}>
-                    El visor de PDF no está disponible en Expo Go.{' '}Usa el build de producción para ver planos PDF.
-                  </Text>
-                </View>
-              )
-              ) : (
-                <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a', gap: 12 }}>
-                  <Ionicons name="document-outline" size={48} color={Colors.textMuted} />
-                  <Text style={[Typography.bodySmall, { color: Colors.textMuted, textAlign: 'center', paddingHorizontal: 32 }]}>
-                    El visor de PDF no está disponible en Expo Go.{' '}Usa el build de producción para ver planos PDF.
-                  </Text>
-                </View>
-              )
-              ) : (
-                <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a' }}>
-                  <ActivityIndicator color={Colors.primary} />
-                </View>
-              )}
-              {!imgLoaded && (
-                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-                  <ActivityIndicator color={Colors.primary} />
-                </View>
-              )}
-
-              {annotations.map((ann) => {
-                if (ann.type === 'pin' && ann.point_x != null && ann.point_y != null) {
-                  return (
-                    <TouchableOpacity
-                      key={ann.id}
-                      onPress={() => handleAnnotationPress(ann)}
-                      style={{
-                        position: 'absolute',
-                        left: ann.point_x * imageSize.width - 14,
-                        top: ann.point_y * imageSize.height - 14,
-                        width: 28, height: 28, borderRadius: 14,
-                        backgroundColor: ann.color,
-                        alignItems: 'center', justifyContent: 'center',
-                        borderWidth: 2, borderColor: '#fff',
-                        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
-                      }}
-                    >
-                      <Ionicons name="pin" size={14} color="#fff" />
-                    </TouchableOpacity>
-                  );
-                }
-                if (ann.type === 'reference' && ann.point_x != null && ann.point_y != null) {
-                  const hasThumbnail = !!ann.attachment_thumbnail;
-                  return (
-                    <TouchableOpacity
-                      key={ann.id}
-                      onPress={() => handleAnnotationPress(ann)}
-                      style={{
-                        position: 'absolute',
-                        left: ann.point_x * imageSize.width - 16,
-                        top: ann.point_y * imageSize.height - 16,
-                        width: 32, height: 32, borderRadius: 16,
-                        backgroundColor: hasThumbnail ? undefined : ann.color,
-                        alignItems: 'center', justifyContent: 'center',
-                        borderWidth: 2, borderColor: '#fff',
-                        overflow: 'hidden',
-                        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
-                      }}
-                    >
-                      {hasThumbnail ? (
-                        <Image source={{ uri: ann.attachment_thumbnail! }} style={{ width: 32, height: 32 }} />
-                      ) : (
-                        <Ionicons name="document-attach" size={14} color="#fff" />
-                      )}
-                    </TouchableOpacity>
-                  );
-                }
-                if (ann.type === 'text' && ann.position_x != null && ann.position_y != null) {
-                  return (
-                    <TouchableOpacity
-                      key={ann.id}
-                      onPress={() => handleAnnotationPress(ann)}
-                      style={{
-                        position: 'absolute',
-                        left: ann.position_x * imageSize.width,
-                        top: ann.position_y * imageSize.height,
-                        backgroundColor: `${ann.color}CC`,
-                        borderRadius: Radius.sm,
-                        paddingHorizontal: 8, paddingVertical: 3,
-                        maxWidth: 140,
-                      }}
-                    >
-                      <Text style={{ fontSize: 11, color: '#fff', fontWeight: '600' }}>
-                        {ann.text}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                }
-                return null;
-              })}
-
-              {renderSVGOverlay()}
-              {renderMeasureHitboxes()}
-              </Animated.View>
-            </View>
-          ) : isPdf ? (
-            <View
-              style={{ width: SCREEN_W, height: VIEWER_H }}
-              onTouchEnd={activeTool !== 'none' ? handleTouch : undefined}
-              onTouchMove={activeTool === 'measure' ? handleTouchMove : undefined}
-              onLayout={(e) => {
-                setImageSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height });
-              }}
-            >
-              {pdfDownloadError ? (
-                <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a', gap: Spacing.md }}>
-                  <Ionicons name="alert-circle-outline" size={32} color={Colors.danger} />
-                  <Text style={[Typography.bodySmall, { color: Colors.textMuted }]}>No se pudo descargar el PDF</Text>
-                </View>
-              ) : localPdfPath ? (
-                <Pdf
-                  source={{ uri: localPdfPath, cache: false }}
-                  style={{ width: SCREEN_W, height: VIEWER_H, backgroundColor: '#1a1a1a' }}
-                  onLoadComplete={() => setImgLoaded(true)}
-                  onPageChanged={(page) => setCurrentPage(page)}
-                  onError={(error) => {
-                    console.warn('[PlanViewer] Error renderizando PDF:', error);
-                    Alert.alert('Error', 'No se pudo mostrar el PDF descargado.');
-                  }}
-                  enablePaging={false}
-                  horizontal={false}
-                  fitPolicy={0}
-                  minScale={1}
-                  maxScale={1}
-                />
-              ) : (
-                <View style={{ width: SCREEN_W, height: VIEWER_H, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1a1a1a' }}>
-                  <ActivityIndicator color={Colors.primary} />
-                </View>
-              )}
-              {!imgLoaded && (
-                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-                  <ActivityIndicator color={Colors.primary} />
-                </View>
-              )}
-
-              {annotations.map((ann) => {
-                if (ann.type === 'pin' && ann.point_x != null && ann.point_y != null) {
-                  return (
-                    <TouchableOpacity
-                      key={ann.id}
-                      onPress={() => handleAnnotationPress(ann)}
-                      style={{
-                        position: 'absolute',
-                        left: ann.point_x * imageSize.width - 14,
-                        top: ann.point_y * imageSize.height - 14,
-                        width: 28, height: 28, borderRadius: 14,
-                        backgroundColor: ann.color,
-                        alignItems: 'center', justifyContent: 'center',
-                        borderWidth: 2, borderColor: '#fff',
-                        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
-                      }}
-                    >
-                      <Ionicons name="pin" size={14} color="#fff" />
-                    </TouchableOpacity>
-                  );
-                }
-                if (ann.type === 'reference' && ann.point_x != null && ann.point_y != null) {
-                  const hasThumbnail = !!ann.attachment_thumbnail;
-                  return (
-                    <TouchableOpacity
-                      key={ann.id}
-                      onPress={() => handleAnnotationPress(ann)}
-                      style={{
-                        position: 'absolute',
-                        left: ann.point_x * imageSize.width - 16,
-                        top: ann.point_y * imageSize.height - 16,
-                        width: 32, height: 32, borderRadius: 16,
-                        backgroundColor: hasThumbnail ? undefined : ann.color,
-                        alignItems: 'center', justifyContent: 'center',
-                        borderWidth: 2, borderColor: '#fff',
-                        overflow: 'hidden',
-                        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
-                      }}
-                    >
-                      {hasThumbnail ? (
-                        <Image source={{ uri: ann.attachment_thumbnail! }} style={{ width: 32, height: 32 }} />
-                      ) : (
-                        <Ionicons name="document-attach" size={14} color="#fff" />
-                      )}
-                    </TouchableOpacity>
-                  );
-                }
-                if (ann.type === 'text' && ann.position_x != null && ann.position_y != null) {
-                  return (
-                    <TouchableOpacity
-                      key={ann.id}
-                      onPress={() => handleAnnotationPress(ann)}
-                      style={{
-                        position: 'absolute',
-                        left: ann.position_x * imageSize.width,
-                        top: ann.position_y * imageSize.height,
-                        backgroundColor: `${ann.color}CC`,
-                        borderRadius: Radius.sm,
-                        paddingHorizontal: 8, paddingVertical: 3,
-                        maxWidth: 140,
-                      }}
-                    >
-                      <Text style={{ fontSize: 11, color: '#fff', fontWeight: '600' }}>
-                        {ann.text}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                }
-                return null;
-              })}
-
-              {renderSVGOverlay()}
-              {renderMeasureHitboxes()}
-            </View>
-          ) : activeTool === 'none' ? (
-            <View
-              style={{ width: SCREEN_W, height: VIEWER_H, overflow: 'hidden' }}
-              {...zoomPanResponder.panHandlers}
-              onLayout={(e) => {
-                setImageSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height });
-              }}
-            >
-              <Animated.View
-                style={{
-                  width: SCREEN_W, height: VIEWER_H,
-                  transform: [
-                    { translateX },
-                    { translateY },
-                    { scale },
-                  ],
-                }}
-              >
-              <Image
-                source={{ uri: plan.file_url }}
-                style={{ width: SCREEN_W, height: VIEWER_H, resizeMode: 'contain' }}
-                onLoad={() => setImgLoaded(true)}
-              />
-              {!imgLoaded && (
-                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-                  <ActivityIndicator color={Colors.primary} />
-                </View>
-              )}
-
-              {annotations.map((ann) => {
-                if (ann.type === 'pin' && ann.point_x != null && ann.point_y != null) {
-                  return (
-                    <TouchableOpacity
-                      key={ann.id}
-                      onPress={() => handleAnnotationPress(ann)}
-                      style={{
-                        position: 'absolute',
-                        left: ann.point_x * imageSize.width - 14,
-                        top: ann.point_y * imageSize.height - 14,
-                        width: 28, height: 28, borderRadius: 14,
-                        backgroundColor: ann.color,
-                        alignItems: 'center', justifyContent: 'center',
-                        borderWidth: 2, borderColor: '#fff',
-                        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
-                      }}
-                    >
-                      <Ionicons name="pin" size={14} color="#fff" />
-                    </TouchableOpacity>
-                  );
-                }
-                if (ann.type === 'reference' && ann.point_x != null && ann.point_y != null) {
-                  const hasThumbnail = !!ann.attachment_thumbnail;
-                  return (
-                    <TouchableOpacity
-                      key={ann.id}
-                      onPress={() => handleAnnotationPress(ann)}
-                      style={{
-                        position: 'absolute',
-                        left: ann.point_x * imageSize.width - 16,
-                        top: ann.point_y * imageSize.height - 16,
-                        width: 32, height: 32, borderRadius: 16,
-                        backgroundColor: hasThumbnail ? undefined : ann.color,
-                        alignItems: 'center', justifyContent: 'center',
-                        borderWidth: 2, borderColor: '#fff',
-                        overflow: 'hidden',
-                        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
-                      }}
-                    >
-                      {hasThumbnail ? (
-                        <Image source={{ uri: ann.attachment_thumbnail! }} style={{ width: 32, height: 32 }} />
-                      ) : (
-                        <Ionicons name="document-attach" size={14} color="#fff" />
-                      )}
-                    </TouchableOpacity>
-                  );
-                }
-                if (ann.type === 'text' && ann.position_x != null && ann.position_y != null) {
-                  return (
-                    <TouchableOpacity
-                      key={ann.id}
-                      onPress={() => handleAnnotationPress(ann)}
-                      style={{
-                        position: 'absolute',
-                        left: ann.position_x * imageSize.width,
-                        top: ann.position_y * imageSize.height,
-                        backgroundColor: `${ann.color}CC`,
-                        borderRadius: Radius.sm,
-                        paddingHorizontal: 8, paddingVertical: 3,
-                        maxWidth: 140,
-                      }}
-                    >
-                      <Text style={{ fontSize: 11, color: '#fff', fontWeight: '600' }}>
-                        {ann.text}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                }
-                return null;
-              })}
-
-              {renderSVGOverlay()}
-              {renderMeasureHitboxes()}
-              </Animated.View>
-            </View>
           ) : (
+            // UN SOLO contenedor para todos los modos: el transform se aplica
+            // siempre, así que el zoom sobrevive al cambio de herramienta.
             <View
-              onTouchEnd={handleTouch}
-              onTouchMove={activeTool === 'measure' ? handleTouchMove : undefined}
-              onLayout={(e) => {
-                setImageSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height });
-              }}
+              ref={containerRef}
+              style={{ width: SCREEN_W, height: VIEWER_H, overflow: 'hidden' }}
+              {...zoomPanResponder.panHandlers}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={activeTool !== 'none' ? handleTouchEnd : undefined}
+              onTouchMove={activeTool !== 'none' ? handleTouchMove : undefined}
+              onLayout={handleLayout}
             >
-              <Image
-                source={{ uri: plan.file_url }}
-                style={{ width: SCREEN_W, height: VIEWER_H, resizeMode: 'contain' }}
-                onLoad={() => setImgLoaded(true)}
-              />
-              {!imgLoaded && (
-                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-                  <ActivityIndicator color={Colors.primary} />
+              <Animated.View
+                style={{
+                  width: SCREEN_W, height: VIEWER_H,
+                  transform: [
+                    { translateX },
+                    { translateY },
+                    { scale },
+                  ],
+                }}
+              >
+                {renderMedia()}
+
+                {!imgLoaded && (
+                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+                    <ActivityIndicator color={Colors.primary} />
+                  </View>
+                )}
+
+                {renderAnnotationMarkers()}
+                {renderSVGOverlay()}
+                {renderMeasureHitboxes()}
+              </Animated.View>
+
+              {crosshair && (
+                <View
+                  pointerEvents="none"
+                  style={{
+                    position: 'absolute',
+                    left: crosshair.x - 30,
+                    top: crosshair.y - 30,
+                    width: 60, height: 60,
+                    alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <View style={{ position: 'absolute', width: 60, height: 1.5, backgroundColor: '#EF4444' }} />
+                  <View style={{ position: 'absolute', width: 1.5, height: 60, backgroundColor: '#EF4444' }} />
+                  <View style={{
+                    width: 14, height: 14, borderRadius: 7,
+                    borderWidth: 1.5, borderColor: '#EF4444', backgroundColor: 'transparent',
+                  }} />
+                  <View style={{ position: 'absolute', width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#EF4444' }} />
                 </View>
               )}
 
-              {annotations.map((ann) => {
-                if (ann.type === 'pin' && ann.point_x != null && ann.point_y != null) {
-                  return (
-                    <TouchableOpacity
-                      key={ann.id}
-                      onPress={() => handleAnnotationPress(ann)}
-                      style={{
-                        position: 'absolute',
-                        left: ann.point_x * imageSize.width - 14,
-                        top: ann.point_y * imageSize.height - 14,
-                        width: 28, height: 28, borderRadius: 14,
-                        backgroundColor: ann.color,
-                        alignItems: 'center', justifyContent: 'center',
-                        borderWidth: 2, borderColor: '#fff',
-                        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
-                      }}
-                    >
-                      <Ionicons name="pin" size={14} color="#fff" />
-                    </TouchableOpacity>
-                  );
-                }
-                if (ann.type === 'reference' && ann.point_x != null && ann.point_y != null) {
-                  const hasThumbnail = !!ann.attachment_thumbnail;
-                  return (
-                    <TouchableOpacity
-                      key={ann.id}
-                      onPress={() => handleAnnotationPress(ann)}
-                      style={{
-                        position: 'absolute',
-                        left: ann.point_x * imageSize.width - 16,
-                        top: ann.point_y * imageSize.height - 16,
-                        width: 32, height: 32, borderRadius: 16,
-                        backgroundColor: hasThumbnail ? undefined : ann.color,
-                        alignItems: 'center', justifyContent: 'center',
-                        borderWidth: 2, borderColor: '#fff',
-                        overflow: 'hidden',
-                        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
-                      }}
-                    >
-                      {hasThumbnail ? (
-                        <Image source={{ uri: ann.attachment_thumbnail! }} style={{ width: 32, height: 32 }} />
-                      ) : (
-                        <Ionicons name="document-attach" size={14} color="#fff" />
-                      )}
-                    </TouchableOpacity>
-                  );
-                }
-                if (ann.type === 'text' && ann.position_x != null && ann.position_y != null) {
-                  return (
-                    <TouchableOpacity
-                      key={ann.id}
-                      onPress={() => handleAnnotationPress(ann)}
-                      style={{
-                        position: 'absolute',
-                        left: ann.position_x * imageSize.width,
-                        top: ann.position_y * imageSize.height,
-                        backgroundColor: `${ann.color}CC`,
-                        borderRadius: Radius.sm,
-                        paddingHorizontal: 8, paddingVertical: 3,
-                        maxWidth: 140,
-                      }}
-                    >
-                      <Text style={{ fontSize: 11, color: '#fff', fontWeight: '600' }}>
-                        {ann.text}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                }
-                return null;
-              })}
-
-              {renderSVGOverlay()}
-              {renderMeasureHitboxes()}
             </View>
           )}
         </View>
@@ -1152,8 +1062,8 @@ export function PlanViewer({ plan, onAddAnnotation, onDeleteAnnotation, onUpdate
             <Text style={[Typography.bodySmall, { fontWeight: '600' }]}>
               {selectedAnnotation.type === 'pin' ? '📍 Pin'
                 : selectedAnnotation.type === 'measure' ? '📏 Medición'
-                : selectedAnnotation.type === 'reference' ? '📎 Referencia'
-                : '📝 Texto'}
+                  : selectedAnnotation.type === 'reference' ? '📎 Referencia'
+                    : '📝 Texto'}
               {selectedAnnotation.label ? ` · ${selectedAnnotation.label}` : ''}
               {selectedAnnotation.text ? ` · ${selectedAnnotation.text}` : ''}
               {selectedAnnotation.real_dist ? ` · ${selectedAnnotation.real_dist}` : ''}
